@@ -1,0 +1,332 @@
+# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+{{- $hostRootPath := "/triton" }}
+{{- $image_name := "" }}
+{{- with $.Values.triton }}
+{{-   with .image }}
+{{-     $image_name = required "Property '.triton.image.name' is required." .name }}
+{{-   else }}
+{{-    fail "Property '.triton.image' is required." }}
+{{-   end }}
+{{- else }}
+{{-  fail "Property '.triton' is required" }}
+{{- end }}
+{{- $model_name := "" }}
+{{- $model_dt := "float16" }}
+{{- $model_pp := 1 }}
+{{- $model_tp := 1 }}
+{{- with $.Values.kubernetes }}
+{{-   with .hostRootPath }}
+{{-     $hostRootPath = . }}
+{{-   end }}
+{{- end }}
+{{- with $.Values.model }}
+{{-   $model_name = required "Property '.model.name' is required." .name }}
+{{-   with .tensorrtLlm }}
+{{-     with .dataType }}
+{{-       $model_dt = . }}
+{{-     end }}
+{{-     with .parallelism }}
+{{-       with .pipeline }}
+{{-         $model_pp = (int .) }}
+{{-       end }}
+{{-       with .tensor }}
+{{-         $model_tp = (int .) }}
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- else }}
+{{-   fail "Property '.model' is required." }}
+{{- end }}
+{{- $model_lower := lower $model_name }}
+{{- $model_upper := upper $model_name }}
+{{- $pod_count := mul $model_pp $model_tp }}
+{{- $triton_cpu := 16 }}
+{{- $triton_memory := "128Gi" }}
+{{- with $.Values.triton }}
+{{-   with .image }}
+{{-     with .name }}
+{{-       $image_name = . }}
+{{-     end }}
+{{-   end }}
+{{-   with .resources }}
+{{-     with .cpu }}
+{{-       $triton_cpu = (int .) }}
+{{-     end }}
+{{-     with .memory }}
+{{-       $triton_memory = . }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- $engine_path := printf "/var/run/models/%s/%dx%d/engine" $model_lower (int $model_pp) (int $model_tp) }}
+# {{- $model_path := printf "/var/run/models/%s/%dx%d/model" $model_lower (int $model_pp) (int $model_tp) }}
+# {{- $model_path := printf "/var/run/models/llama2_7b/triton_model_repo" }}
+# {{- $model_path := printf "/var/run/models/llama3_8b/triton_model_repo" }}
+# {{- $model_path := printf "/var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo" }}
+{{- $model_path := printf "/var/run/models/llama3_8b_tp2_pp4/triton_model_repo" }}
+{{- $skip_conversion := false }}
+{{- with $.Values.model }}
+{{-   with .skipConversion }}
+{{-     $skip_conversion = . }}
+{{-   end }}
+{{- end }}
+{{- $hf_verbosity := "error" }}
+{{- with $.Values.logging }}
+{{-   with .initialization }}
+{{-     if .verbose }}
+{{-       $hf_verbosity = "info" }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- $service_account := $.Release.Name }}
+{{- with $.Values.kubernetes }}
+{{-   with .serviceAccount }}
+{{-     $service_account = . }}
+{{-   end }}
+{{- end }}
+
+apiVersion: leaderworkerset.x-k8s.io/v1
+kind: LeaderWorkerSet
+metadata:
+  name: leaderworkerset-sample
+spec:
+  replicas: 1
+  leaderWorkerTemplate:
+    size: 2
+    leaderTemplate:
+      metadata:
+        name: {{ $.Release.Name }}-leader
+        labels:
+          app: {{ $.Release.Name }}
+      {{-     with $.Values.kubernetes }}
+      {{-       with .labels }}
+      {{          toYaml . | indent 4 }}
+      {{-       end }}
+      {{-     end }}
+          role: leader
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: nvidia.com/gpu
+                  operator: Exists
+                - key: nvidia.com/gpu.product
+                  operator: In
+                  values:
+                  - {{ required "Property '.gpu' is required." $.Values.gpu }}
+        containers:
+        - name: triton
+          command:
+          - python3
+          - ./server.py
+          - leader
+          - --triton_model_repo_dir={{ $model_path }}
+          - --namespace={{ $.Release.Namespace }}
+          - --pp={{ $model_pp }}
+          - --tp={{ $model_tp }}
+          - --gpu_per_node={{ $.Values.gpuPerNode }}
+          - --stateful_set_group_key=$(GROUP_KEY)
+  {{-     with $.Values.logging }}
+  {{-       with .tritonServer }}
+  {{-         if .useIso8601 }}
+          - --iso8601
+  {{-         end }}
+  {{-         if .verbose }}
+          - --verbose
+  {{-         end }}
+  {{-       end }}
+  {{-     end }}
+          env:
+          - name: GROUP_KEY
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['leaderworkerset.sigs.k8s.io/group-key']
+  {{-     with $.Values.logging }}
+  {{-       with .tritonServer }}
+  {{-         if .verbose }}
+          - name: NCCL_DEBUG
+            value: INFO
+  {{-         end }}
+  {{-       end }}
+  {{-     end }}
+          image: {{ $image_name }}
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 15
+            httpGet:
+              path: /v2/health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 2
+            successThreshold: 1
+          ports:
+          - containerPort: 8000
+            name: http
+          - containerPort: 8001
+            name: grpc
+          - containerPort: 8002
+            name: metrics
+          readinessProbe:
+            failureThreshold: 15
+            httpGet:
+              path: /v2/health/ready
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 2
+            successThreshold: 1
+          resources:
+            limits:
+              cpu: {{ $triton_cpu }}
+              ephemeral-storage: 1Gi
+              memory: {{ $triton_memory }}
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 1
+            requests:
+              cpu: {{ $triton_cpu }}
+              ephemeral-storage: 1Gi
+              memory: {{ $triton_memory }}
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 1
+          startupProbe:
+            failureThreshold: 60
+            httpGet:
+              path: /v2/health/ready
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            successThreshold: 1
+          volumeMounts:
+          - mountPath: /var/run/models
+            name: model-repository
+            # readOnly: true
+          - mountPath: /dev/shm
+            name: dshm
+  {{-     with $.Values.triton }}
+  {{-       with .image }}
+  {{-         with .pullSecrets }}
+        imagePullSecrets:
+  {{            toYaml . | indent 6 }}
+  {{-         end }}
+  {{-       end }}
+  {{-     end }}
+        # restartPolicy: Always
+        serviceAccountName: {{ $service_account }}
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+  {{-     with $.Values.kubernetes }}
+  {{-       with .tolerations }}
+  {{          toYaml . | indent 6 }}
+  {{-       end }}
+  {{-     end }}
+        volumes:
+        - name: model-repository
+          persistentVolumeClaim:
+            claimName: {{ $.Values.model.persistentVolumeClaim }}
+            # readOnly: false
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
+    workerTemplate:
+      metadata:
+        labels:
+          app: {{ $.Release.Name }}
+      {{-     with $.Values.kubernetes }}
+      {{-       with .labels }}
+      {{          toYaml . | indent 4 }}
+      {{-       end }}
+      {{-     end }}
+      spec:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: nvidia.com/gpu
+                  operator: Exists
+                - key: nvidia.com/gpu.product
+                  operator: In
+                  values:
+                  - {{ required "Property '.gpu' is required." $.Values.gpu }}
+        containers:
+        - name: worker
+          command:
+          - python3
+          - ./server.py
+          - worker
+          - --triton_model_repo_dir={{ $model_path }}
+          env:
+  {{-     with $.Values.logging }}
+  {{-       with .tritonServer }}
+  {{-         if .verbose }}
+          - name: NCCL_DEBUG
+            value: INFO
+  {{-         end }}
+  {{-       end }}
+  {{-     end }}
+          image: {{ $image_name }}
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: {{ $triton_cpu }}
+              ephemeral-storage: 4Gi
+              memory: {{ $triton_memory }}
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 1
+            requests:
+              cpu: {{ $triton_cpu }}
+              ephemeral-storage: 4Gi
+              memory: {{ $triton_memory }}
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 1
+          volumeMounts:
+          - mountPath: /var/run/models
+            name: model-repository
+            # readOnly: true
+          - mountPath: /dev/shm
+            name: dshm
+  {{-     with $.Values.triton }}
+  {{-       with .image }}
+  {{-         with .pullSecrets }}
+        imagePullSecrets:
+  {{            toYaml . | indent 6 }}
+  {{-         end }}
+  {{-       end }}
+  {{-     end }}
+        # restartPolicy: Always
+        serviceAccountName: {{ $service_account }}
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+  {{-     with $.Values.kubernetes }}
+  {{-       with .tolerations }}
+  {{          toYaml . | indent 6 }}
+  {{-       end }}
+  {{-     end }}
+        volumes:
+        - name: model-repository
+          persistentVolumeClaim:
+            claimName: {{ $.Values.model.persistentVolumeClaim }}
+            # readOnly: true
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Gi
