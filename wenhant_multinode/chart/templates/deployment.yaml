@@ -11,89 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{{- $hostRootPath := "/triton" }}
-{{- $image_name := "" }}
 {{- with $.Values.triton }}
 {{-   with .image }}
-{{-     $image_name = required "Property '.triton.image.name' is required." .name }}
-{{-   else }}
 {{-    fail "Property '.triton.image' is required." }}
 {{-   end }}
 {{- else }}
 {{-  fail "Property '.triton' is required" }}
 {{- end }}
-{{- $model_name := "" }}
-{{- $model_dt := "float16" }}
-{{- $model_pp := 1 }}
-{{- $model_tp := 1 }}
-{{- with $.Values.kubernetes }}
-{{-   with .hostRootPath }}
-{{-     $hostRootPath = . }}
-{{-   end }}
-{{- end }}
 {{- with $.Values.model }}
-{{-   $model_name = required "Property '.model.name' is required." .name }}
-{{-   with .tensorrtLlm }}
-{{-     with .dataType }}
-{{-       $model_dt = . }}
-{{-     end }}
-{{-     with .parallelism }}
-{{-       with .pipeline }}
-{{-         $model_pp = (int .) }}
-{{-       end }}
-{{-       with .tensor }}
-{{-         $model_tp = (int .) }}
-{{-       end }}
-{{-     end }}
-{{-   end }}
-{{- else }}
 {{-   fail "Property '.model' is required." }}
-{{- end }}
-{{- $model_lower := lower $model_name }}
-{{- $model_upper := upper $model_name }}
-{{- $pod_count := mul $model_pp $model_tp }}
-{{- $triton_cpu := 16 }}
-{{- $triton_memory := "128Gi" }}
-{{- with $.Values.triton }}
-{{-   with .image }}
-{{-     with .name }}
-{{-       $image_name = . }}
-{{-     end }}
-{{-   end }}
-{{-   with .resources }}
-{{-     with .cpu }}
-{{-       $triton_cpu = (int .) }}
-{{-     end }}
-{{-     with .memory }}
-{{-       $triton_memory = . }}
-{{-     end }}
-{{-   end }}
-{{- end }}
-{{- $engine_path := printf "/var/run/models/%s/%dx%d/engine" $model_lower (int $model_pp) (int $model_tp) }}
-# {{- $model_path := printf "/var/run/models/%s/%dx%d/model" $model_lower (int $model_pp) (int $model_tp) }}
-# {{- $model_path := printf "/var/run/models/llama2_7b/triton_model_repo" }}
-# {{- $model_path := printf "/var/run/models/llama3_8b/triton_model_repo" }}
-# {{- $model_path := printf "/var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo" }}
-{{- $model_path := printf "/var/run/models/llama3_8b_tp2_pp4/triton_model_repo" }}
-{{- $skip_conversion := false }}
-{{- with $.Values.model }}
-{{-   with .skipConversion }}
-{{-     $skip_conversion = . }}
-{{-   end }}
-{{- end }}
-{{- $hf_verbosity := "error" }}
-{{- with $.Values.logging }}
-{{-   with .initialization }}
-{{-     if .verbose }}
-{{-       $hf_verbosity = "info" }}
-{{-     end }}
-{{-   end }}
-{{- end }}
-{{- $service_account := $.Release.Name }}
-{{- with $.Values.kubernetes }}
-{{-   with .serviceAccount }}
-{{-     $service_account = . }}
-{{-   end }}
 {{- end }}
 
 apiVersion: leaderworkerset.x-k8s.io/v1
@@ -133,10 +59,10 @@ spec:
           - python3
           - ./server.py
           - leader
-          - --triton_model_repo_dir={{ $model_path }}
+          - --triton_model_repo_dir={{ $.Values.triton.triton_model_repo_path }}
           - --namespace={{ $.Release.Namespace }}
-          - --pp={{ $model_pp }}
-          - --tp={{ $model_tp }}
+          - --pp={{ $.Values.model.tensorrtLlm.parallelism.pipeline }}
+          - --tp={{ $.Values.model.tensorrtLlm.parallelism.tensor }}
           - --gpu_per_node={{ $.Values.gpuPerNode }}
           - --stateful_set_group_key=$(GROUP_KEY)
   {{-     with $.Values.logging }}
@@ -162,7 +88,7 @@ spec:
   {{-         end }}
   {{-       end }}
   {{-     end }}
-          image: {{ $image_name }}
+          image: {{ $.Values.triton.image.name }}
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 15
@@ -189,15 +115,15 @@ spec:
             successThreshold: 1
           resources:
             limits:
-              cpu: {{ $triton_cpu }}
+              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
               ephemeral-storage: 1Gi
-              memory: {{ $triton_memory }}
+              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
               nvidia.com/gpu: 4
               vpc.amazonaws.com/efa: 1
             requests:
-              cpu: {{ $triton_cpu }}
+              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
               ephemeral-storage: 1Gi
-              memory: {{ $triton_memory }}
+              memory: {{ $triton_.Values.model.tensorrtLlm.conversion.memorymemory }}
               nvidia.com/gpu: 4
               vpc.amazonaws.com/efa: 1
           startupProbe:
@@ -223,7 +149,7 @@ spec:
   {{-       end }}
   {{-     end }}
         # restartPolicy: Always
-        serviceAccountName: {{ $service_account }}
+        serviceAccountName: {{ $.Release.Name }}
         terminationGracePeriodSeconds: 30
         tolerations:
         - effect: NoSchedule
@@ -270,7 +196,7 @@ spec:
           - python3
           - ./server.py
           - worker
-          - --triton_model_repo_dir={{ $model_path }}
+          - --triton_model_repo_dir={{ $.Values.triton.triton_model_repo_path }}
           env:
   {{-     with $.Values.logging }}
   {{-       with .tritonServer }}
@@ -280,19 +206,19 @@ spec:
   {{-         end }}
   {{-       end }}
   {{-     end }}
-          image: {{ $image_name }}
+          image: {{ $.Values.triton.image.name }}
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              cpu: {{ $triton_cpu }}
+              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
               ephemeral-storage: 4Gi
-              memory: {{ $triton_memory }}
+              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
               nvidia.com/gpu: 4
               vpc.amazonaws.com/efa: 1
             requests:
-              cpu: {{ $triton_cpu }}
+              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
               ephemeral-storage: 4Gi
-              memory: {{ $triton_memory }}
+              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
               nvidia.com/gpu: 4
               vpc.amazonaws.com/efa: 1
           volumeMounts:
@@ -310,7 +236,7 @@ spec:
   {{-       end }}
   {{-     end }}
         # restartPolicy: Always
-        serviceAccountName: {{ $service_account }}
+        serviceAccountName: {{ $.Release.Name }}
         terminationGracePeriodSeconds: 30
         tolerations:
         - effect: NoSchedule

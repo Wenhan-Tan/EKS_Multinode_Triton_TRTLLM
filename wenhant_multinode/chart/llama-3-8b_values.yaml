@@ -41,6 +41,10 @@ triton:
     # name: wenhant16/triton_trtllm_multinode:24.06.13 # only downgrade ompi
     name: wenhant16/triton_trtllm_multinode:24.06.23 # only downgrade ompi + modify server.py for leaderworkerset
     # name: wenhant16/triton_trtllm:0.11.0
+  # triton_model_repo_path: /var/run/models/llama2_7b/triton_model_repo
+  # triton_model_repo_path: /var/run/models/llama3_8b/triton_model_repo
+  # triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
+  triton_model_repo_path: /var/run/models/llama3_8b_tp2_pp4/triton_model_repo
 
 # Configuration options for automatic scaling of Triton Server deployments.
 autoscaling:
