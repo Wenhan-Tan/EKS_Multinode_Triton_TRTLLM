@@ -25,14 +25,11 @@ gpuPerNode: # (required)
 # Expected to support read/write many access.
 persistentVolumeClaim: # (required)
 
-# Name of the secret used to download the model from Hugging Face.
-# GPT2 does not require an access token to download.
-# Other models may require per repository permissions to be granted.
+# Name of the secret to pull image
 pullSecret: # (optional)
 
 # Configuration options related to the AI model to be deployed.
-tensorrtLLM: # (required)
-    # Parallelism configuration options which affect how the model is converted to
+tensorrtLLM: # (optional)
     # TensorRT-LLM format, specifically if/how the model is partitioned for deployment to multiple GPUs.
     parallelism: # (optional)
       # Pipeline parallelism involves sharding the model (vertically) into chunks, where each chunk comprises a
@@ -52,7 +49,6 @@ tensorrtLLM: # (required)
 triton: # (required)
   # Configuration options related to the container image for Triton Server.
   image: # (required)
-    # - name: ngc-container-pull
     # Name of the container image containing the version of Triton Server to be used.
     name: wenhant16/triton_trtllm_multinode:24.06.23 # (required)
   # Configuration options managing the resources assigned to individual Triton Server instances.
