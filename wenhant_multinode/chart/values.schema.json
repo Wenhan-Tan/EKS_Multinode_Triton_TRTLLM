@@ -318,7 +318,6 @@
   },
   "required": [
     "gpu",
-    "model",
     "triton"
   ]
 }

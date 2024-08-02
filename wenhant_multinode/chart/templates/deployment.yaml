@@ -11,16 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-{{- with $.Values.triton }}
-{{-   with .image }}
-{{-    fail "Property '.triton.image' is required." }}
-{{-   end }}
-{{- else }}
-{{-  fail "Property '.triton' is required" }}
-{{- end }}
-{{- with $.Values.model }}
-{{-   fail "Property '.model' is required." }}
-{{- end }}
 
 apiVersion: leaderworkerset.x-k8s.io/v1
 kind: LeaderWorkerSet
@@ -61,8 +51,8 @@ spec:
           - leader
           - --triton_model_repo_dir={{ $.Values.triton.triton_model_repo_path }}
           - --namespace={{ $.Release.Namespace }}
-          - --pp={{ $.Values.model.tensorrtLlm.parallelism.pipeline }}
-          - --tp={{ $.Values.model.tensorrtLlm.parallelism.tensor }}
+          - --pp={{ $.Values.tensorrtLLM.parallelism.pipeline }}
+          - --tp={{ $.Values.tensorrtLLM.parallelism.tensor }}
           - --gpu_per_node={{ $.Values.gpuPerNode }}
           - --stateful_set_group_key=$(GROUP_KEY)
   {{-     with $.Values.logging }}
@@ -115,16 +105,16 @@ spec:
             successThreshold: 1
           resources:
             limits:
-              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
+              cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 1Gi
-              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
-              nvidia.com/gpu: 4
+              memory: {{ $.Values.triton.resources.memory }}
+              nvidia.com/gpu: {{ $.Values.gpuPerNode }}
               vpc.amazonaws.com/efa: 1
             requests:
-              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
+              cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 1Gi
-              memory: {{ $triton_.Values.model.tensorrtLlm.conversion.memorymemory }}
-              nvidia.com/gpu: 4
+              memory: {{ $.Values.triton.resources.memory }}
+              nvidia.com/gpu: {{ $.Values.gpuPerNode }}
               vpc.amazonaws.com/efa: 1
           startupProbe:
             failureThreshold: 60
@@ -140,12 +130,10 @@ spec:
             # readOnly: true
           - mountPath: /dev/shm
             name: dshm
-  {{-     with $.Values.triton }}
-  {{-       with .image }}
-  {{-         with .pullSecrets }}
+  {{-     with $.Values }}
+  {{-       with .pullSecrets }}
         imagePullSecrets:
-  {{            toYaml . | indent 6 }}
-  {{-         end }}
+  {{          toYaml . | indent 6 }}
   {{-       end }}
   {{-     end }}
         # restartPolicy: Always
@@ -163,7 +151,7 @@ spec:
         volumes:
         - name: model-repository
           persistentVolumeClaim:
-            claimName: {{ $.Values.model.persistentVolumeClaim }}
+            claimName: {{ $.Values.persistentVolumeClaim }}
             # readOnly: false
         - name: dshm
           emptyDir:
@@ -210,16 +198,16 @@ spec:
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
+              cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 4Gi
-              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
-              nvidia.com/gpu: 4
+              memory: {{ $.Values.triton.resources.memory }}
+              nvidia.com/gpu: {{ $.Values.gpuPerNode }}
               vpc.amazonaws.com/efa: 1
             requests:
-              cpu: {{ $.Values.model.tensorrtLlm.conversion.cpu }}
+              cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 4Gi
-              memory: {{ $.Values.model.tensorrtLlm.conversion.memory }}
-              nvidia.com/gpu: 4
+              memory: {{ $.Values.triton.resources.memory }}
+              nvidia.com/gpu: {{ $.Values.gpuPerNode }}
               vpc.amazonaws.com/efa: 1
           volumeMounts:
           - mountPath: /var/run/models
@@ -227,12 +215,10 @@ spec:
             # readOnly: true
           - mountPath: /dev/shm
             name: dshm
-  {{-     with $.Values.triton }}
-  {{-       with .image }}
-  {{-         with .pullSecrets }}
+  {{-     with $.Values }}
+  {{-       with .pullSecrets }}
         imagePullSecrets:
-  {{            toYaml . | indent 6 }}
-  {{-         end }}
+  {{          toYaml . | indent 6 }}
   {{-       end }}
   {{-     end }}
         # restartPolicy: Always
@@ -250,7 +236,7 @@ spec:
         volumes:
         - name: model-repository
           persistentVolumeClaim:
-            claimName: {{ $.Values.model.persistentVolumeClaim }}
+            claimName: {{ $.Values.persistentVolumeClaim }}
             # readOnly: true
         - name: dshm
           emptyDir:

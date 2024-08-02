@@ -16,36 +16,39 @@
 
 gpu: NVIDIA-A10G
 gpuPerNode: 4
+persistentVolumeClaim: efs-claim
 
-model:
-  name: llama-3-8b
-  persistentVolumeClaim: efs-claim
-  skipConversion: True
-  tensorrtLlm:
-    conversion:
-      gpu: 4
-      memory: 64Gi
+tensorrtLLM:
     parallelism:
       tensor: 2
       pipeline: 4
 
-logging:
-  tritonServer:
-    verbose: False
-
 triton:
   image:
+    # name: wenhant16/triton_trtllm_multinode:24.05 # for TRTLLM 0.9 + Triton 24.05
     # name: wenhant16/triton_trtllm_multinode:24.06.10 # only downgrade ucx
     # name: wenhant16/triton_trtllm_multinode:24.06.11 # only downgrade ucc
     # name: wenhant16/triton_trtllm_multinode:24.06.12 # only downgrade ucx+ucc
     # name: wenhant16/triton_trtllm_multinode:24.06.13 # only downgrade ompi
     name: wenhant16/triton_trtllm_multinode:24.06.23 # only downgrade ompi + modify server.py for leaderworkerset
-    # name: wenhant16/triton_trtllm:0.11.0
+    # name: wenhant16/triton_trtllm:0.11.0 # custom built for TRTLLM 0.10 + Triton 24.07
+  resources:
+    cpu: 4
+    memory: 64Gi
   # triton_model_repo_path: /var/run/models/llama2_7b/triton_model_repo
   # triton_model_repo_path: /var/run/models/llama3_8b/triton_model_repo
   # triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
   triton_model_repo_path: /var/run/models/llama3_8b_tp2_pp4/triton_model_repo
 
-# Configuration options for automatic scaling of Triton Server deployments.
+logging:
+  tritonServer:
+    verbose: False
+
 autoscaling:
   enable: true
+  replicas:
+    maximum: 2
+    minimum: 1
+  metric:
+    name: triton:queue_compute:ratio
+    value: 1

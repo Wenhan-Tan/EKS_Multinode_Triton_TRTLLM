@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $noService := false }}
-{{- with $.Values.kubernetes }}
-{{-   with .noService }}
-{{-     $noService = . }}
-{{-   end }}
-{{- end }}
-{{- if $noService }}
+{{- if $.Values.kubernetes.noService }}
 # Chart values optioned to not create a service. Service not created.
 {{- else }}
 apiVersion: v1

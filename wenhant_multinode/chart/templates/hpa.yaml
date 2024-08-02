@@ -12,28 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- $metric_name := "triton:queue_compute:ratio" }}
-{{- $metric_value := "1000m" }}
-{{- $replicasMax := 2 }}
-{{- $replicasMin := 1 }}
-{{- with $.Values.autoscaling }}
-{{-   if .enable }}
-{{-     with .replicas }}
-{{-       with .maximum }}
-{{-         $replicasMax = . }}
-{{-       end }}
-{{-       with .minimum }}
-{{-         $replicasMin = . }}
-{{-       end }}
-{{-     end }}
-{{-     with .metric }}
-{{-       with .name }}
-{{-         $metric_name = . }}
-{{-       end }}
-{{-       with .value }}
-{{-         $metric_value = . }}
-{{-       end }}
-{{-     end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -48,19 +26,17 @@ metadata:
 {{-       end }}
 {{-     end }}
 spec:
-  maxReplicas: {{ $replicasMax }}
-  minReplicas: {{ $replicasMin }}
+  maxReplicas: {{ $.Values.autoscaling.replicas.maximum }}
+  minReplicas: {{ $.Values.autoscaling.replicas.minimum }}
   metrics:
   - type: Pods
     pods:
       metric:
-        name: {{ $metric_name }}
+        name: {{ $.Values.autoscaling.metric.name }}
       target:
         type: AverageValue
-        averageValue: {{ $metric_value }}
+        averageValue: {{ $.Values.autoscaling.metric.value }}
   scaleTargetRef:
     apiVersion: leaderworkerset.x-k8s.io/v1
     kind: LeaderWorkerSet
     name: leaderworkerset-sample
-{{-   end }}
-{{- end }}
