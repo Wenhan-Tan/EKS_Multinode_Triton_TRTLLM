@@ -69,7 +69,6 @@ managedNodeGroups:
     desiredCapacity: 1
     iam:
       withAddonPolicies:
-        autoScaler: true
         cloudWatch: true
 
   - name: compute-nodes
