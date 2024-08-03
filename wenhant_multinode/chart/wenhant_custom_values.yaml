@@ -19,9 +19,9 @@ gpuPerNode: 4
 persistentVolumeClaim: efs-claim
 
 tensorrtLLM:
-    parallelism:
-      tensor: 2
-      pipeline: 4
+  parallelism:
+    tensor: 2
+    pipeline: 4
 
 triton:
   image:
