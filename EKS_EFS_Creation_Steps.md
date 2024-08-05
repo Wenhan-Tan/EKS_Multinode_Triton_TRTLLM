@@ -1,4 +1,4 @@
-# Steps to set up EKS Cluster and EFS
+# Steps to create EKS cluster and EFS
 
 ## 1. Install CLIs
 
@@ -39,7 +39,7 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 ```
 
-## 2. Create an EKS Cluster
+## 2. Create an EKS cluster
 
 ### a. Configure AWS CLI
 
@@ -47,7 +47,7 @@ chmod 700 get_helm.sh
 aws configure
 ```
 
-### b. Create a config file for EKS Cluster creation
+### b. Create a config file for EKS cluster creation
 
 eks_cluster_config.yaml
 
@@ -85,23 +85,23 @@ managedNodeGroups:
         efs: true
 ```
 
-### c. Create an EKS Cluster
+### c. Create an EKS cluster
 
 ```
 eksctl create cluster -f eks_cluster_config.yaml
 ```
 
-## 3. Create an EFS File System
+## 3. Create an EFS file system
 
 ### a. Create an IAM role
 
 Follow the steps to create an IAM role for your EFS file system: https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html#efs-create-iam-resources. This role will be used later when you install the EFS CSI Driver.
 
-### b. Install EFS CSI Driver
+### b. Install EFS CSI driver
 
 Install the EFS CSI Driver through the Amazon EKS add-on in AWS console: https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html#efs-install-driver. Once it's done, check the Add-ons section in EKS console, you should see the driver is showing `Active` under Status.
 
-### c. Create EFS file System
+### c. Create EFS file system
 
 Follow the steps to create an EFS file system: https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/efs-create-filesystem.md. Make sure you mount subnets in the last step correctly. This will affect whether your nodes are able to access the created EFS file system.
 
