@@ -36,7 +36,7 @@ helm install -n kube-system node-feature-discovery kube-nfd/node-feature-discove
   --set worker.tolerations[0].effect=NoSchedule
 ```
 
-## 3. Install NVIDIA device plugin
+## 3. Install NVIDIA Device Plugin
 
 ```
 kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
