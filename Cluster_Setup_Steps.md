@@ -3,6 +3,7 @@
 ## 1. Add node label and taint
 
 Run the following command to get node names:
+
 ```
 kubectl get nodes
 ```
@@ -38,8 +39,7 @@ helm install -n kube-system node-feature-discovery kube-nfd/node-feature-discove
 ## 3. Install NVIDIA device plugin
 
 ```
-helm repo add eks https://aws.github.io/eks-charts
-helm install efa eks/aws-efa-k8s-device-plugin -n kube-system
+kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
 ```
 
 ## 4. Install NVIDIA GPU Feature Discovery service
@@ -88,4 +88,28 @@ If the command fails, wait longer and retry. If the command fails for more than 
 
 ```
 kubectl apply -f ./triton-metrics_prometheus-rule.yaml
+```
+
+## 9. Install EFA Kubernetes Device Plugin
+
+Pull the EFA Kubernetes Device Plugin helm chart:
+
+```
+helm repo add eks https://aws.github.io/eks-charts
+helm pull eks/aws-efa-k8s-device-plugin --untar
+```
+
+Add tolerations in `aws-efa-k8s-device-plugin/values.yaml` at line 134 like below:
+
+```
+tolerations:
+- key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule
+```
+
+Install the EFA Kubernetes Device Plugin helm chart:
+
+```
+helm install aws-efa-k8s-device-plugin --namespace kube-system ./aws-efa-k8s-device-plugin/
 ```

@@ -105,6 +105,10 @@
                     },
                     { "type": "null" }
                   ]
+                },
+                "efa": {
+                  "description": "Number of EFA adapters in your nodes",
+                  "type": "integer"
                 }
               },
               "type": "object"
