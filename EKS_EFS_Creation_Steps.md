@@ -66,23 +66,37 @@ iam:
 managedNodeGroups:
   - name: sys-nodes
     instanceType: c5.2xlarge
-    desiredCapacity: 1
+    minSize: 0
+    desiredCapacity: 0
+    maxSize: 1
     iam:
       withAddonPolicies:
+        imageBuilder: true
+        autoScaler: true
+        ebs: true
+        efs: true
+        awsLoadBalancerController: true
         cloudWatch: true
+        albIngress: true
 
-  - name: compute-nodes
+  - name: efa-compute-nodes
     instanceType: g5.12xlarge
-    minSize: 2
-    desiredCapacity: 2
-    maxSize: 2
+    minSize: 0
+    desiredCapacity: 0
+    maxSize: 1
     volumeSize: 300
     efaEnabled: true
     privateNetworking: true
     iam:
       withAddonPolicies:
-        cloudWatch: true
+        imageBuilder: true
+        autoScaler: true
+        ebs: true
         efs: true
+        awsLoadBalancerController: true
+        cloudWatch: true
+        albIngress: true
+
 ```
 
 ### c. Create an EKS cluster

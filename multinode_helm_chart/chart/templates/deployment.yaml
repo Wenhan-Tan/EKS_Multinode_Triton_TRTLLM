@@ -109,13 +109,13 @@ spec:
               ephemeral-storage: 1Gi
               memory: {{ $.Values.triton.resources.memory }}
               nvidia.com/gpu: {{ $.Values.gpuPerNode }}
-              vpc.amazonaws.com/efa: {{ $.Values.triton.resouces.efa }}
+              vpc.amazonaws.com/efa: {{ $.Values.triton.resources.efa }}
             requests:
               cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 1Gi
               memory: {{ $.Values.triton.resources.memory }}
               nvidia.com/gpu: {{ $.Values.gpuPerNode }}
-              vpc.amazonaws.com/efa: {{ $.Values.triton.resouces.efa }}
+              vpc.amazonaws.com/efa: {{ $.Values.triton.resources.efa }}
           startupProbe:
             failureThreshold: 60
             httpGet:
@@ -202,13 +202,13 @@ spec:
               ephemeral-storage: 4Gi
               memory: {{ $.Values.triton.resources.memory }}
               nvidia.com/gpu: {{ $.Values.gpuPerNode }}
-              vpc.amazonaws.com/efa: {{ $.Values.triton.resouces.efa }}
+              vpc.amazonaws.com/efa: {{ $.Values.triton.resources.efa }}
             requests:
               cpu: {{ $.Values.triton.resources.cpu }}
               ephemeral-storage: 4Gi
               memory: {{ $.Values.triton.resources.memory }}
               nvidia.com/gpu: {{ $.Values.gpuPerNode }}
-              vpc.amazonaws.com/efa: {{ $.Values.triton.resouces.efa }}
+              vpc.amazonaws.com/efa: {{ $.Values.triton.resources.efa }}
           volumeMounts:
           - mountPath: /var/run/models
             name: model-repository

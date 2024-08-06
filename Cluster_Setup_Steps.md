@@ -25,6 +25,8 @@ kubectl taint nodes ip-10-0-124-72.ec2.internal nvidia.com/gpu=present:NoSchedul
 kubectl taint nodes ip-10-0-8-159.ec2.internal nvidia.com/gpu=present:NoSchedule
 ```
 
+Alternatively, you can add labels and taints in node groups under [EKS console](https://console.aws.amazon.com/eks/home).
+
 ## 2. Install Kubernetes Node Feature Discovery service
 
 ```
@@ -112,4 +114,42 @@ Install the EFA Kubernetes Device Plugin helm chart:
 
 ```
 helm install aws-efa-k8s-device-plugin --namespace kube-system ./aws-efa-k8s-device-plugin/
+```
+
+## 10. Install Cluster Autoscaler
+
+> [!Keep in mind:]
+> - Autoscaler IAM add-on policy needs to be attached (done already if using the example config to create an EKS cluster).
+> - The Cluster Autoscaler won't exceed the maximum number of nodes you set in your node group. So if you want to allow more nodes to be added to your node group by the Cluste Autoscaler, make sure you set maximum nodes accordingly.
+> - The Cluster Autoscaler only scales up number of nodes when there are `unschedulable` pods. It also scales down when the additional nodes are "free".
+
+### a. Deploy the Cluster Autoscaler deployment
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
+```
+
+### b. Set image version
+
+```
+kubectl -n kube-system set image deployment.apps/cluster-autoscaler cluster-autoscaler=registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.2
+```
+
+### c. Add the required safe-to-evict annotation to the deployment
+
+```
+kubectl -n kube-system annotate deployment.apps/cluster-autoscaler cluster-autoscaler.kubernetes.io/safe-to-evict="false"
+```
+
+### d. Edit the manifest file
+
+```
+kubectl -n kube-system edit deployment.apps/cluster-autoscaler
+
+# Change 1: Add your cluster name:
+- --node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/<your_cluster_name>
+
+# Change 2: Add the following two lines below the line above:
+- --balance-similar-node-groups
+- --skip-nodes-with-system-pods=false
 ```
