@@ -118,7 +118,7 @@ helm install aws-efa-k8s-device-plugin --namespace kube-system ./aws-efa-k8s-dev
 
 ## 10. Install Cluster Autoscaler
 
-> [!Keep in mind:]
+> [!Note]
 > - Autoscaler IAM add-on policy needs to be attached (done already if using the example config to create an EKS cluster).
 > - The Cluster Autoscaler won't exceed the maximum number of nodes you set in your node group. So if you want to allow more nodes to be added to your node group by the Cluste Autoscaler, make sure you set maximum nodes accordingly.
 > - The Cluster Autoscaler only scales up number of nodes when there are `unschedulable` pods. It also scales down when the additional nodes are "free".
