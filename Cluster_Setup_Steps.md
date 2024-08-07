@@ -154,7 +154,7 @@ helm install aws-efa-k8s-device-plugin --namespace kube-system ./aws-efa-k8s-dev
 > [!Note]
 > - Autoscaler IAM add-on policy needs to be attached (done already if using the example config to create an EKS cluster).
 > - The Cluster Autoscaler won't exceed the maximum number of nodes that you set in your node group. So if you want to allow more nodes to be added to your node group by the Cluste Autoscaler, make sure you set maximum nodes accordingly.
-> - The Cluster Autoscaler only scales up number of nodes when there are `unschedulable` pods. It also scales down when the additional nodes are "free".
+> - The Cluster Autoscaler only scales up number of nodes when there are `unschedulable` pods. It also scales down when the additional nodes become "free".
 
 ### a. Deploy the Cluster Autoscaler deployment
 
@@ -163,6 +163,8 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/autoscaler/master/
 ```
 
 ### b. Set image version
+
+Here we set the image version to be `v1.30.2`. Make sure it matches your EKS cluster version.
 
 ```
 kubectl -n kube-system set image deployment.apps/cluster-autoscaler cluster-autoscaler=registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.2
@@ -188,6 +190,8 @@ kubectl -n kube-system edit deployment.apps/cluster-autoscaler
 ```
 
 ## 11. Install the LeaderWorkerSet
+
+This allows us to use the LeaderWorkerSet API for our multi-node Triton deployment.
 
 ```
 VERSION=v0.3.0
