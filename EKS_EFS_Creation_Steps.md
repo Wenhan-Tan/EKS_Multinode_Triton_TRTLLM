@@ -96,8 +96,10 @@ managedNodeGroups:
         awsLoadBalancerController: true
         cloudWatch: true
         albIngress: true
-
 ```
+
+> [!NOTE]
+> We set `minSize` and `desiredCapacity` to be 0 because AWS does not create your cluster successfully if no nodes are available. For example, if you specify `desiredCapacity` to be 2 but there are no available 2 nodes, your cluster creation will fail due to timeout even though there are no errors. The easiest way to avoid this is to create the cluster with 0 nodes and increase the number of nodes later.
 
 ### c. Create an EKS cluster
 
