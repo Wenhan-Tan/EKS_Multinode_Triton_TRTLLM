@@ -2,6 +2,8 @@
 
 ## 1. Build a custom image
 
+We need to build a custom image to include the kubessh file, server.py, and other EFA libraries stack.
+
 Run the following command to build a custom image:
 
 ```
@@ -79,6 +81,8 @@ python3 tools/fill_template.py -i triton_model_repo/ensemble/config.pbtxt triton
 
 ## 3. Create a `<custom_values>.yaml` file
 
+Make sure you go over the provided `values.yaml` first to understand what each value represents.
+
 Below is an example:
 
 ```
@@ -114,11 +118,159 @@ autoscaling:
     value: 1
 ```
 
-## 4. Install the helm chart
+## 4. Install the Helm chart
 
 ```
 helm install <installation_name> \
   --values ./chart/values.yaml \
   --values ./chart/<custom_values>.yaml \
   ./chart/.
+```
+
+In this example, we are going to deploy Triton server on 2 nodes with 4 GPUs each. This will result in having 2 pods running in your cluster. Command `kubectl get pods` should output something similar to below:
+
+```
+NAME                         READY   STATUS    RESTARTS   AGE
+leaderworkerset-sample-0     1/1     Running   0          28m
+leaderworkerset-sample-0-1   1/1     Running   0          28m
+```
+
+Use the following command to check Triton logs:
+
+```
+kubectl logs --follow leaderworkerset-sample-0
+```
+
+You should output something similar to below:
+
+```
+I0717 23:01:28.501008 300 server.cc:674] 
++----------------+---------+--------+
+| Model          | Version | Status |
++----------------+---------+--------+
+| ensemble       | 1       | READY  |
+| postprocessing | 1       | READY  |
+| preprocessing  | 1       | READY  |
+| tensorrt_llm   | 1       | READY  |
++----------------+---------+--------+
+
+I0717 23:01:28.501073 300 tritonserver.cc:2579] 
++----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Option                           | Value                                                                                                                                                                                                           |
++----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| server_id                        | rank0                                                                                                                                                                                                           |
+| server_version                   | 2.47.0                                                                                                                                                                                                          |
+| server_extensions                | classification sequence model_repository model_repository(unload_dependents) schedule_policy model_configuration system_shared_memory cuda_shared_memory binary_tensor_data parameters statistics trace logging |
+| model_repository_path[0]         | /var/run/models/llama3_8b_tp2_pp4/triton_model_repo                                                                                                                                                             |
+| model_control_mode               | MODE_NONE                                                                                                                                                                                                       |
+| strict_model_config              | 1                                                                                                                                                                                                               |
+| model_config_name                |                                                                                                                                                                                                                 |
+| rate_limit                       | OFF                                                                                                                                                                                                             |
+| pinned_memory_pool_byte_size     | 268435456                                                                                                                                                                                                       |
+| cuda_memory_pool_byte_size{0}    | 67108864                                                                                                                                                                                                        |
+| min_supported_compute_capability | 6.0                                                                                                                                                                                                             |
+| strict_readiness                 | 1                                                                                                                                                                                                               |
+| exit_timeout                     | 30                                                                                                                                                                                                              |
+| cache_enabled                    | 0                                                                                                                                                                                                               |
++----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+I0717 23:01:28.502835 300 grpc_server.cc:2463] "Started GRPCInferenceService at 0.0.0.0:8001"
+I0717 23:01:28.503047 300 http_server.cc:4692] "Started HTTPService at 0.0.0.0:8000"
+I0717 23:01:28.544321 300 http_server.cc:362] "Started Metrics Service at 0.0.0.0:8002"
+```
+
+## 5. Send a Curl POST request for infernce
+
+Each cloud provider has their own LoadBalancer. In this AWS example, we can view the external IP address by running `kubectl get services`. Note that we use `wenhant-test` as helm chart installation name here. Your output should look something similar to below:
+
+```
+NAME                     TYPE           CLUSTER-IP      EXTERNAL-IP                                                              PORT(S)                                        AGE
+kubernetes               ClusterIP      10.100.0.1      <none>                                                                   443/TCP                                        43d
+leaderworkerset-sample   ClusterIP      None            <none>                                                                   <none>                                         54m
+wenhant-test             LoadBalancer   10.100.44.170   a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com   8000:32120/TCP,8001:32263/TCP,8002:31957/TCP   54m
+```
+
+You can send a CURL with the following command:
+
+```
+curl -X POST a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com:8000/v2/models/ensemble/generate -d '{"text_input": "What is machine learning?", "max_tokens": 64, "bad_words": "", "stop_words": "", "pad_id": 2, "end_id": 2}'
+```
+
+You should output similar to below:
+
+```
+{"context_logits":0.0,"cum_log_probs":0.0,"generation_logits":0.0,"model_name":"ensemble","model_version":"1","output_log_probs":[0.0,0.0,0.0,0.0,0.0],"sequence_end":false,"sequence_id":0,"sequence_start":false,"text_output":" Machine learning is a branch of artificial intelligence that deals with the development of algorithms that allow computers to learn from data and make predictions or decisions without being explicitly programmed. Machine learning algorithms are used in a wide range of applications, including image recognition, natural language processing, and predictive analytics.\nWhat is the difference between machine learning and"}
+```
+
+## 6. Test Horizontal Pod Autoscaler and Cluster Autoscaler
+
+To check HPA status, run:
+
+```
+kubectl get hpa wenhant-test
+```
+
+You should output something similar to below:
+
+```
+NAME           REFERENCE                                TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+wenhant-test   LeaderWorkerSet/leaderworkerset-sample   0/1       1         2         1          66m
+```
+
+From the output above, the current metric value is 0 and the target value is 1. Note that in this example, our metric is a custom metric defined in Prometheus Rule. You can find more details in the [Install Prometheus rule for Triton metrics](Cluster_Setup_Steps.md#8-install-prometheus-rule-for-triton-metrics) step. When the current value exceed 1, the HPA will start to create a new replica. We can either increase traffic by sending a large amount of requests to the LoadBalancer or manually increase minimum number of replicas to let the HPA create the second replica. In this example, we are going to choose the latter and run the following command:
+
+```
+kubectl patch hpa wenhant-test -p '{"spec":{"minReplicas": 2}}'
+```
+
+Your `kubectl get pods` command should output something similar to below:
+
+```
+NAME                         READY   STATUS    RESTARTS   AGE
+leaderworkerset-sample-0     1/1     Running   0          6h48m
+leaderworkerset-sample-0-1   1/1     Running   0          6h48m
+leaderworkerset-sample-1     0/1     Pending   0          13s
+leaderworkerset-sample-1-1   0/1     Pending   0          13s
+```
+
+Here we can see the second replica is created but in `Pending` status. If you run `kubectl describe pod leaderworkerset-sample-1`, you should see events similar to below:
+
+```
+Events:
+  Type     Reason            Age   From                Message
+  ----     ------            ----  ----                -------
+  Warning  FailedScheduling  48s   default-scheduler   0/3 nodes are available: 1 node(s) didn't match Pod's node affinity/selector, 2 Insufficient nvidia.com/gpu, 2 Insufficient vpc.amazonaws.com/efa. preemption: 0/3 nodes are available: 1 Preemption is not helpful for scheduling, 2 No preemption victims found for incoming pod.
+  Normal   TriggeredScaleUp  15s   cluster-autoscaler  pod triggered scale-up: [{eks-efa-compute-ng-2-7ac8948c-e79a-9ad8-f27f-70bf073a9bfa 2->4 (max: 4)}]
+```
+
+The first event means that there are no available nodes to schedule any pods. This explains why the second 2 pods are in `Pending` status. The second event states that the Cluster Autoscaler detects that this pod is `unschedulable`, so it is going to increase number of nodes in our cluster until maximum is reached. You can find more details in the [Install Cluster Autoscaler](Cluster_Setup_Steps.md#10-install-cluster-autoscaler) step. This process can take some time depending on whether AWS have enough nodes available to add to your cluster. Eventually, the Cluster Autoscaler will add 2 more nodes in your node group so that the 2 `Pending` pods can be scheduled on them. Your `kubectl get nodes` and `kubectl get pods` commands should output something similar to below:
+
+```
+NAME                             STATUS   ROLES    AGE   VERSION
+ip-192-168-103-11.ec2.internal   Ready    <none>   15m   v1.30.2-eks-1552ad0
+ip-192-168-106-8.ec2.internal    Ready    <none>   15m   v1.30.2-eks-1552ad0
+ip-192-168-117-30.ec2.internal   Ready    <none>   11h   v1.30.2-eks-1552ad0
+ip-192-168-127-31.ec2.internal   Ready    <none>   11h   v1.30.2-eks-1552ad0
+ip-192-168-26-106.ec2.internal   Ready    <none>   11h   v1.30.2-eks-1552ad0
+```
+
+```
+leaderworkerset-sample-0     1/1     Running   0          7h26m
+leaderworkerset-sample-0-1   1/1     Running   0          7h26m
+leaderworkerset-sample-1     1/1     Running   0          38m
+leaderworkerset-sample-1-1   1/1     Running   0          38m
+```
+
+You can run the following command to change minimum replica back to 1:
+
+```
+kubectl patch hpa wenhant-test -p '{"spec":{"minReplicas": 1}}'
+```
+
+The HPA will delete the second replica if current metric does not exceed the target value. The Cluster Autoscaler will also remove the added 2 nodes when it detects them as "free".
+
+## 7. Uninstall the Helm chart
+
+```
+helm uninstall <installation_name>
 ```

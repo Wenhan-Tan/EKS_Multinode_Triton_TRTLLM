@@ -13,9 +13,9 @@
 # limitations under the License.
 
 ARG BASE_CONTAINER_IMAGE=nvcr.io/nvidia/tritonserver:24.07-trtllm-python-py3
-ARG ENGINE_DEST_PATH=/var/run/models/engine
-ARG HF_HOME=/var/run/hugging_face
-ARG MODEL_DEST_PATH=/var/run/models/model
+ARG EFA_INSTALLER_VERSION=1.33.0
+ARG AWS_OFI_NCCL_VERSION=v1.9.2-aws
+ARG NCCL_VERSION=v2.21.5-1
 
 FROM ${BASE_CONTAINER_IMAGE}
 
@@ -37,6 +37,7 @@ RUN apt update \
     cgroup-tools \
  && rm -rf /var/lib/apt/lists/*
 
+ #################################################
 # Install kubectl because server.py script depends on it.
 # Step 1: acquire the Kubernetes APT GPG key.
 RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key \
@@ -56,23 +57,38 @@ RUN apt update \
  && apt purge --yes \
  && rm -rf /var/lib/apt/lists/*
 
-# Set Triton CLI environment variables which control where
-# TRTLLM engine and model files are downloaded to; and where
-# the path to the Huggingface cache.
-ENV ENGINE_DEST_PATH ${ENGINE_DEST_PATH}
-ENV HF_HOME ${HF_HOME}
-ENV MODEL_DEST_PATH ${MODEL_DEST_PATH}
+#################################################
+## Install EFA installer
+RUN cd $HOME \
+    && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && cd aws-efa-installer \
+    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
+    && rm -rf $HOME/aws-efa-installer
+
+###################################################
+## Install AWS-OFI-NCCL plugin
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
+#Switch from sh to bash to allow parameter expansion
+SHELL ["/bin/bash", "-c"]
+RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+    && ./configure --prefix=/opt/aws-ofi-nccl/install \
+        --with-mpi=/opt/amazon/openmpi \
+        --with-libfabric=/opt/amazon/efa \
+        --with-cuda=/usr/local/cuda \
+        --enable-platform-aws \
+    && make -j $(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
+
+SHELL ["/bin/sh", "-c"]
 
 # Set the active working directory.
 WORKDIR /workspace
-
-# Install a custom version of Triton CLI that support Tensor parallelism and
-# the 70B version of Llama models.
-RUN pip --verbose install \
-    --no-cache-dir \
-    --no-color \
-    --no-input \
-    git+https://github.com/triton-inference-server/triton_cli.git@jwyman/aslb-mn
 
 # Copy kubessh script w/ executable permissions for everyone.
 # This enables the script to be executed no matter the user the container is run as.
