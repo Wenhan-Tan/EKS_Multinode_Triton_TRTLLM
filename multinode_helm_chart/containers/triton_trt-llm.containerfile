@@ -57,7 +57,8 @@ RUN apt update \
  && apt purge --yes \
  && rm -rf /var/lib/apt/lists/*
 
-#### COPY EFA DockerFile
+###############################################
+#### For EFA and NCCL Test
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
                       libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
@@ -90,15 +91,13 @@ RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
-# Uncomment below stanza to install the latest NCCL
-# Require efa-installer>=1.29.0 for nccl-2.19.0 to avoid libfabric gave NCCL error.
 
+# NCCL
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
    && cd nccl \
    && make -j src.build BUILDDIR=/usr/local \
-   # nvcc to target p5 and p4 instances
    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90" \
    && rm -rf /tmp/nccl
 
@@ -130,7 +129,7 @@ RUN mkdir -p /tmp && \
     make -j$(nproc) install && \
     rm -rf /tmp/aws-ofi/nccl
 
-# NCCL
+# NCCL ENV setup
 RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
     echo "/opt/amazon/openmpi/lib" >> /etc/ld.so.conf.d/efa.conf && \
     ldconfig
@@ -151,7 +150,7 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     # nvcc to target p5 and p4 instances
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
 
-#### END OF COPY EFA DockerFile
+###############################################
 
 # Set the active working directory.
 WORKDIR /workspace

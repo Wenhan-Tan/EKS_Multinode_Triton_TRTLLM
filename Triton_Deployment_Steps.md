@@ -97,12 +97,13 @@ tensorrtLLM:
 
 triton:
   image:
-    name: wenhant16/triton_trtllm_multinode:24.07.1
+    name: wenhant16/triton_trtllm_multinode:24.07.10
   resources:
     cpu: 4
     memory: 64Gi
-    efa: 1
-  triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
+    efa: 1 # If you don't want to enable EFA, set this to 0.
+  triton_model_repo_path: /var/run/models/llama3_8b_tp4_pp2/triton_model_repo
+  enable_nsys: false # Note if you send lots of requests, nsys report can be very large.
 
 logging:
   tritonServer:
@@ -273,4 +274,34 @@ The HPA will delete the second replica if current metric does not exceed the tar
 
 ```
 helm uninstall <installation_name>
+```
+
+## 8. (Optional) NCCL Test
+
+To test whether EFA is working properly, we can run a NCCL test across nodes. Make sure you modify the [nccl_test.yaml](./multinode_helm_chart/nccl_test.yaml) file and adjust the following values:
+
+- `slotsPerWorker`: set to the number of GPUs per node in your cluster
+- `-np`: set to "number_of_worker_nodes" * "number_of_gpus_per_node"
+- `-N`: set to number_of_gpus_per_node
+- `Worker: replicas`: set to number of worker pods you would like the test to run on. This must be less than or eaqual to the number of nodes in your cluster
+- `node.kubernetes.io/instance-type`: set to the instance type of the nodes in your cluster against which you would like the nccl test to be run
+- `nvidia.com/gpu`: set to the number of GPUs per node in your cluster, adjust in both the limits and requests section
+- `vpc.amazonaws.com/efa`: set to the number of EFA adapters per node in your cluster, adjust in both the limits and requests section
+
+Run the command below to deploy the MPI Operator which is required by the NCCL Test manifest:
+
+```
+kubectl apply --server-side -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.5.0/deploy/v2beta1/mpi-operator.yaml
+```
+
+Run the command below to deploy NCCL test:
+
+```
+kubectl apply -f nccl_test.yaml
+```
+
+Note that the launcher pod will keep restarting until the connection is established with the worker pods. Run the command below to see the launcher pod logs:
+
+```
+kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
 ```
