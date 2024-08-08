@@ -161,7 +161,8 @@ def do_leader(args):
         cmd_args = [
             "/var/run/models/nsight-systems-cli-DVS/bin/nsys",
             "profile",
-            "-f",
+            "--force-overwrite",
+            "true",
             "-t",
             "cuda,nvtx",
             "--enable",

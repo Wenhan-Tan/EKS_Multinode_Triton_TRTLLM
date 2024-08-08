@@ -30,7 +30,8 @@ triton:
     # name: wenhant16/triton_trtllm_multinode:24.07.1 # add EFA libraries
     # name: wenhant16/triton_trtllm_multinode:24.07.3 # add EFA libraries + nsys in server.py
     # name: wenhant16/triton_trtllm_multinode:24.07.4/5/6/7 # Do not use, nccl test only
-    name: wenhant16/triton_trtllm_multinode:24.07.8 # add EFA libraries + nccl_test
+    # name: wenhant16/triton_trtllm_multinode:24.07.8 # add EFA libraries + nccl_test
+    name: wenhant16/triton_trtllm_multinode:24.07.9 # add EFA libraries + nccl_test + optional nsys
   resources:
     cpu: 4
     memory: 64Gi
@@ -39,7 +40,7 @@ triton:
   # triton_model_repo_path: /var/run/models/llama3_8b/triton_model_repo
   triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
   # triton_model_repo_path: /var/run/models/llama3_8b_tp2_pp4/triton_model_repo
-  enable_nsys: false
+  enable_nsys: true
 
 logging:
   tritonServer:
