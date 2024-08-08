@@ -107,7 +107,7 @@
                   ]
                 },
                 "efa": {
-                  "description": "Number of EFA adapters in your nodes",
+                  "description": "Number of EFA adapters in your nodes. If you don't want to enable EFA, simply set it to 0.",
                   "type": "integer"
                 }
               },
@@ -121,7 +121,7 @@
           "type": "string"
         },
         "enable_nsys": {
-          "description": "Enable profiling on Triton server",
+          "description": "Enable profiling on Triton server. Note if you send lots of requests, nsys report can be very large.",
           "type": "boolean"
         }
       },
