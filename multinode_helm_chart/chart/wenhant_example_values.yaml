@@ -29,7 +29,7 @@ triton:
   resources:
     cpu: 4
     memory: 64Gi
-    efa: 1
+    efa: 1 # If you don't want to enable EFA, set this to 0
   # triton_model_repo_path: /var/run/models/llama2_7b/triton_model_repo
   # triton_model_repo_path: /var/run/models/llama3_8b/triton_model_repo
   triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo

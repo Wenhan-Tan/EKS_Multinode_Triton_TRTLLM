@@ -57,7 +57,7 @@ triton: # (required)
     cpu: 4 # (default: 4)
     # Amount of CPU-visible system memory allocated to, and reserved for each instance of Triton Server.
     memory: 64Gi # (default: 32Gi)
-    # Amount of EFA adapters in your nodes
+    # Amount of EFA adapters in your nodes. If you don't want to enable EFA, simply set it to 0
     efa: 1 # (default: 1)
   triton_model_repo_path: # (required)
   # Enable profiling on Triton server
