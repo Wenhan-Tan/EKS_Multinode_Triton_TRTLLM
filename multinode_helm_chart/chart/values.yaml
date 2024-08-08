@@ -60,6 +60,8 @@ triton: # (required)
     # Amount of EFA adapters in your nodes
     efa: 1 # (default: 1)
   triton_model_repo_path: # (required)
+  # Enable profiling on Triton server
+  enable_nsys: false # (default: false)
 
 # Configuration options related to how various components generate logs.
 logging: # (optional)

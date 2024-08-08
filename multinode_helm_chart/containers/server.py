@@ -56,6 +56,7 @@ def parse_arguments():
         help="How many gpus are in each pod/node (We launch one pod per node). Only required in leader mode.",
     )
     parser.add_argument("--stateful_set_group_key",type=str,default=None,help="Value of leaderworkerset.sigs.k8s.io/group-key, Leader uses this to gang schedule and its only needed in leader mode")
+    parser.add_argument("--enable_nsys", action="store_true", help="Enable Triton server profiling")
 
     return parser.parse_args()
 
@@ -156,10 +157,25 @@ def do_leader(args):
     
     workers_with_mpi_slots = [worker + f":{args.gpu_per_node}" for worker in workers]
 
-    cmd_args = [
-        "mpirun",
-        "--allow-run-as-root",
-    ]
+    if args.enable_nsys:
+        cmd_args = [
+            "/var/run/models/nsight-systems-cli-DVS/bin/nsys",
+            "profile",
+            "-f",
+            "-t",
+            "cuda,nvtx",
+            "--enable",
+            "efa_metrics",
+            "-o",
+            "/var/run/models/nsys_report",
+            "/opt/amazon/openmpi/bin/mpirun",
+            "--allow-run-as-root",
+        ]
+    else:
+        cmd_args = [
+            "/opt/amazon/openmpi/bin/mpirun",
+            "--allow-run-as-root",
+        ]
 
     if args.verbose:
         cmd_args += ["--debug-devel"]

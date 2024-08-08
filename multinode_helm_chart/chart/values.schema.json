@@ -119,6 +119,10 @@
         "triton_model_repo_path": {
           "description": "Triton model repo path",
           "type": "string"
+        },
+        "enable_nsys": {
+          "description": "Enable profiling on Triton server",
+          "type": "boolean"
         }
       },
       "required": [

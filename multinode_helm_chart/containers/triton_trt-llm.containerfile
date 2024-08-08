@@ -13,9 +13,12 @@
 # limitations under the License.
 
 ARG BASE_CONTAINER_IMAGE=nvcr.io/nvidia/tritonserver:24.07-trtllm-python-py3
-ARG NCCL_VERSION=v2.21.5-1
-
 FROM ${BASE_CONTAINER_IMAGE}
+
+ENV EFA_INSTALLER_VERSION=1.33.0
+ENV AWS_OFI_NCCL_VERSION=1.9.2-aws
+ENV NCCL_VERSION=2.21.5-1
+ENV NCCL_TESTS_VERSION=2.13.9
 
 # Set a set of useful labels.
 LABEL "base"="${BASE_CONTAINER_IMAGE}"
@@ -35,7 +38,6 @@ RUN apt update \
     cgroup-tools \
  && rm -rf /var/lib/apt/lists/*
 
- #################################################
 # Install kubectl because server.py script depends on it.
 # Step 1: acquire the Kubernetes APT GPG key.
 RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key \
@@ -55,36 +57,101 @@ RUN apt update \
  && apt purge --yes \
  && rm -rf /var/lib/apt/lists/*
 
-#################################################
-## Install EFA installer
-RUN apt update
-RUN cd $HOME \
-    && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-1.33.0.tar.gz \
-    && tar -xf $HOME/aws-efa-installer-1.33.0.tar.gz \
-    && cd aws-efa-installer \
-    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
-    && rm -rf $HOME/aws-efa-installer
+#### COPY EFA DockerFile
+RUN apt-get update -y
+RUN apt-get remove -y --allow-change-held-packages \
+                      libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
 
-###################################################
-## Install AWS-OFI-NCCL plugin
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
-#Switch from sh to bash to allow parameter expansion
-SHELL ["/bin/bash", "-c"]
-RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/v1.9.2-aws/aws-ofi-nccl-1.9.2-aws.tar.gz \
-    && tar -xf aws-ofi-nccl-1.9.2-aws.tar.gz \
-    && cd aws-ofi-nccl-1.9.2-aws \
-    && ./configure --prefix=/opt/aws-ofi-nccl/install \
-        --with-mpi=/opt/amazon/openmpi \
+RUN rm -rf /opt/hpcx/ompi \
+    && rm -rf /usr/local/mpi \
+    && rm -fr /opt/hpcx/nccl_rdma_sharp_plugin \
+    && ldconfig
+ENV OPAL_PREFIX=
+RUN apt-get install -y --allow-unauthenticated \
+    git \
+    gcc \
+    vim \
+    kmod \
+    openssh-client \
+    openssh-server \
+    build-essential \
+    curl \
+    autoconf \
+    libtool \
+    gdb \
+    automake \
+    cmake \
+    apt-utils \
+    libhwloc-dev \
+    aptitude && \
+    apt autoremove -y
+
+RUN mkdir -p /var/run/sshd
+RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
+    echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
+    sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
+# Uncomment below stanza to install the latest NCCL
+# Require efa-installer>=1.29.0 for nccl-2.19.0 to avoid libfabric gave NCCL error.
+
+RUN apt-get remove -y libnccl2 libnccl-dev \
+   && cd /tmp \
+   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+   && cd nccl \
+   && make -j src.build BUILDDIR=/usr/local \
+   # nvcc to target p5 and p4 instances
+   NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90" \
+   && rm -rf /tmp/nccl
+
+# EFA
+RUN apt-get update && \
+    apt-get install -y libhwloc-dev && \
+    cd /tmp && \
+    curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz  && \
+    tar -xf aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
+    cd aws-efa-installer && \
+    ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify && \
+    ldconfig && \
+    rm -rf /tmp/aws-efa-installer /var/lib/apt/lists/*
+
+# NCCL EFA Plugin
+RUN mkdir -p /tmp && \
+    cd /tmp && \
+    curl -LO https://github.com/aws/aws-ofi-nccl/archive/refs/tags/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+    tar -xzf /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+    rm /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+    mv aws-ofi-nccl-${AWS_OFI_NCCL_VERSION} aws-ofi-nccl && \
+    cd /tmp/aws-ofi-nccl && \
+    ./autogen.sh && \
+    ./configure --prefix=/opt/amazon/efa \
         --with-libfabric=/opt/amazon/efa \
         --with-cuda=/usr/local/cuda \
         --enable-platform-aws \
-    && make -j $(nproc) \
-    && make install \
-    && cd .. \
-    && rm -rf aws-ofi-nccl-1.9.2-aws \
-    && rm aws-ofi-nccl-1.9.2-aws.tar.gz
+        --with-mpi=/opt/amazon/openmpi && \
+    make -j$(nproc) install && \
+    rm -rf /tmp/aws-ofi/nccl
 
-SHELL ["/bin/sh", "-c"]
+# NCCL
+RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
+    echo "/opt/amazon/openmpi/lib" >> /etc/ld.so.conf.d/efa.conf && \
+    ldconfig
+
+ENV OMPI_MCA_pml=^cm,ucx            \
+    OMPI_MCA_btl=tcp,self           \
+    OMPI_MCA_btl_tcp_if_exclude=lo,docker0 \
+    OPAL_PREFIX=/opt/amazon/openmpi \
+    NCCL_SOCKET_IFNAME=^docker,lo
+
+# NCCL-tests
+RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
+    && cd /opt/nccl-tests \
+    && git checkout v${NCCL_TESTS_VERSION} \
+    && make MPI=1 \
+    MPI_HOME=/opt/amazon/openmpi \
+    CUDA_HOME=/usr/local/cuda \
+    # nvcc to target p5 and p4 instances
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+
+#### END OF COPY EFA DockerFile
 
 # Set the active working directory.
 WORKDIR /workspace

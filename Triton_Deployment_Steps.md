@@ -97,7 +97,7 @@ tensorrtLLM:
 
 triton:
   image:
-    name: wenhant16/triton_trtllm_multinode:24.07
+    name: wenhant16/triton_trtllm_multinode:24.07.1
   resources:
     cpu: 4
     memory: 64Gi
