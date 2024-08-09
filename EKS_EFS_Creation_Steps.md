@@ -51,7 +51,7 @@ aws configure
 
 ### b. Create a config file for EKS cluster creation
 
-eks_cluster_config.yaml
+We have provided an example file here: [eks_cluster_config.yaml](./eks_cluster_config.yaml)
 
 ```
 apiVersion: eksctl.io/v1alpha5
@@ -101,7 +101,7 @@ managedNodeGroups:
 ```
 
 > [!NOTE]
-> We set `minSize` and `desiredCapacity` to be 0 because AWS does not create your cluster successfully if no nodes are available. For example, if you specify `desiredCapacity` to be 2 but there are no available 2 nodes, your cluster creation will fail due to timeout even though there are no errors. The easiest way to avoid this is to create the cluster with 0 nodes and increase the number of nodes later.
+> We set `minSize` and `desiredCapacity` to be 0 because AWS does not create your cluster successfully if no nodes are available. For example, if you specify `desiredCapacity` to be 2 but there are no available 2 nodes, your cluster creation will fail due to timeout even though there are no errors. The easiest way to avoid this is to create the cluster with 0 nodes and increase the number of nodes later in the EKS console. After you increase number of nodes in your node groups, make sure GPU nodes are in the same subnet. This is required for EFA to work. If they aren't, you can remove them and add new ones. Alternatively, you can also limit the number of subnets to be 1. This way all nodes will always be on the same subnet. A drawback is sometimes certain subnets do not have enough GPU instances available and wait time can be long.
 
 ### c. Create the EKS cluster
 
@@ -129,3 +129,59 @@ Follow the steps to create an EFS file system: https://github.com/kubernetes-sig
 ## 4. Test
 
 Follow the steps to check if your EFS file system is working properly with your nodes: https://github.com/kubernetes-sigs/aws-efs-csi-driver/tree/master/examples/kubernetes/multiple_pods. This test is going to mount your EFS file system on all of your available nodes and write a text file to the file system.
+
+## 5. Create an PVC for the created EFS file system
+
+We have provided an example in here: [pvc](./pvc/). This folder contains three files: `pv.yaml`, `claim.yaml`, and `storageclass.yaml`. Make sure you modify the `pv.yaml` file and change the `volumeHandle` value to your own EFS file system ID.
+
+pv.yaml
+
+```
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: efs-pv
+spec:
+  capacity:
+    storage: 200Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: efs-sc
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: fs-0cf1f987d6f5af59c # Change to your own ID
+```
+
+claim.yaml
+
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: efs-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 200Gi
+```
+
+storageclass.yaml
+
+```
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+```
+
+Run the below command to deploy:
+
+```
+kubectl apply -f pvc/
+```
