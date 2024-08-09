@@ -17,9 +17,9 @@
 
 # Container Generation
 
-The files in this folder are intended to be used to create the Triton Server container image.
+The files in this folder are intended to be used to create the custom container image for multi-node Triton + TRT-LLM EKS deployment including installation of EFA componenets.
 
-Run the following command to create a Triton Server container image.
+Run the following command to create the container image.
 
 ```bash
 docker build --file ./triton_trt-llm.containerfile --tag <image_name_here> .
