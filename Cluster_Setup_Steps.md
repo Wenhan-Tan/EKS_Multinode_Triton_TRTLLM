@@ -53,7 +53,7 @@ helm install -n kube-system node-feature-discovery kube-nfd/node-feature-discove
 
 ## 3. Install NVIDIA Device Plugin
 
-> We are using NVIDIA Device Plugin here because the default EKS optimzied AMI (Amazon Linux 2) already has NVIDIA drivers pre-installed. If you would like to use EKS Ubuntu AMI which does not have the drivers pre-installed, you need to install [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/amazon-eks.html#nvidia-gpu-operator-with-amazon-eks) instead.
+We are using NVIDIA Device Plugin here because the default EKS optimzied AMI (Amazon Linux 2) already has NVIDIA drivers pre-installed. If you would like to use EKS Ubuntu AMI which does not have the drivers pre-installed, you need to install [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/amazon-eks.html#nvidia-gpu-operator-with-amazon-eks) instead.
 
 ```
 kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
