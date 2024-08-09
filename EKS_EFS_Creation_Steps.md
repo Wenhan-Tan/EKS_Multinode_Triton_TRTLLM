@@ -1,4 +1,4 @@
-# Steps to create EKS cluster and EFS
+# Steps to create EKS cluster with EFS
 
 ## 1. Install CLIs
 
@@ -40,6 +40,8 @@ chmod 700 get_helm.sh
 ```
 
 ## 2. Create an EKS cluster
+
+In this example we create an EKS cluster consisting of two `g5.12xlarge` compute nodes, each with four NVIDIA A10G GPUs and `c5.2xlarge` CPU node as control plane. We also setup EFA between the compute nodes.
 
 ### a. Configure AWS CLI
 
@@ -101,7 +103,7 @@ managedNodeGroups:
 > [!NOTE]
 > We set `minSize` and `desiredCapacity` to be 0 because AWS does not create your cluster successfully if no nodes are available. For example, if you specify `desiredCapacity` to be 2 but there are no available 2 nodes, your cluster creation will fail due to timeout even though there are no errors. The easiest way to avoid this is to create the cluster with 0 nodes and increase the number of nodes later.
 
-### c. Create an EKS cluster
+### c. Create the EKS cluster
 
 ```
 eksctl create cluster -f eks_cluster_config.yaml
@@ -109,6 +111,9 @@ eksctl create cluster -f eks_cluster_config.yaml
 
 ## 3. Create an EFS file system
 
+To enable multiple pods deployed to multiple nodes to load shards of the same model so that they can used in coordination to serve inference request too large to loaded by a single GPU, we'll need a common, shared storage location. In Kubernetes, these common, shared storage locations are referred to as persistent volumes. Persistent volumes can be volume mapped in to any number of pods and then accessed by processes running inside of said pods as if they were part of the pod's file system. We will be using EFS as persistent volume.
+
+Additionally, we will need to create a persistent-volume claim which can use to assign the persistent volume to a pod.
 ### a. Create an IAM role
 
 Follow the steps to create an IAM role for your EFS file system: https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html#efs-create-iam-resources. This role will be used later when you install the EFS CSI Driver.
