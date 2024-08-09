@@ -50,7 +50,7 @@ triton: # (required)
   # Configuration options related to the container image for Triton Server.
   image: # (required)
     # Name of the container image containing the version of Triton Server to be used.
-    name: wenhant16/triton_trtllm_multinode:24.06.23 # (required)
+    name: wenhant16/triton_trtllm_multinode:24.07.10 # (required)
   # Configuration options managing the resources assigned to individual Triton Server instances.
   resources: # (optional)
     # Number of logical CPU cores reserved for, and assigned to each instance of Triton Server.
