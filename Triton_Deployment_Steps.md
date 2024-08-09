@@ -1,10 +1,10 @@
-# Steps to deploy Triton Server on EKS
+# Steps to deploy multi-node LLM using Triton + TRT-LLM on EKS cluster
 
-## 1. Build a custom image
+## 1. Build the custom container image
 
-We need to build a custom image to include the kubessh file, server.py, and other EFA libraries stack.
+We need to build a custom image on top of Triton TRT-LLM NGC container to include the kubessh file, server.py, and other EFA libraries stack.
 
-Run the following command to build a custom image:
+Run the following command to build the custom image:
 
 ```
 docker build \
@@ -20,9 +20,9 @@ Push the image to a cluster visible repository:
 docker push <custom_image_tag>
 ```
 
-## 2. Prepare a Triton model repository:
+## 2. Setup Triton model repository for LLM deployment:
 
-Clone the TRT-LLM backend repository:
+Clone the  Triton TRT-LLM backend repository:
 
 ```
 git clone https://github.com/triton-inference-server/tensorrtllm_backend.git -b v0.11.0
@@ -31,13 +31,13 @@ git lfs install
 git submodule update --init --recursive
 ```
 
-Launch a container:
+Launch the Triton TRT-LLM container:
 
 ```
 docker run --rm -it --net host --shm-size=2g --ulimit memlock=-1 --ulimit stack=67108864 --gpus all -v $(pwd):/workspace -w /workspace nvcr.io/nvidia/tritonserver:24.07-trtllm-python-py3 bash
 ```
 
-Build a Llama3-8b engine with Tensor Parallelism=4, Pipeline Parallelism=2:
+Build a Llama3-8B engine with Tensor Parallelism=4, Pipeline Parallelism=2 to run on 2 nodes of g5.12xlarge (4 A10G GPUs each), so total of 8 GPUs across 2 nodes.
 
 ```
 cd tensorrt_llm/examples/llama
@@ -59,7 +59,7 @@ trtllm-build --checkpoint_dir ./converted_checkpoint \
              --use_paged_context_fmha enable
 ```
 
-Prepare a Triton model repository:
+Prepare the Triton model repository:
 
 ```
 cd /workspace
@@ -191,7 +191,7 @@ leaderworkerset-sample   ClusterIP      None            <none>                  
 wenhant-test             LoadBalancer   10.100.44.170   a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com   8000:32120/TCP,8001:32263/TCP,8002:31957/TCP   54m
 ```
 
-You can send a CURL with the following command:
+You can send a CURL request to the `ensemble` TRT-LLM Llama-3 model with the following command:
 
 ```
 curl -X POST a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com:8000/v2/models/ensemble/generate -d '{"text_input": "What is machine learning?", "max_tokens": 64, "bad_words": "", "stop_words": "", "pad_id": 2, "end_id": 2}'
