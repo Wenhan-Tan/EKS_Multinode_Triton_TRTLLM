@@ -1,6 +1,13 @@
 # Steps to set up cluster
 
+In this guide we will set up the Kubernetes cluster for the deployment of LLMs using Triton Server and TRT-LLM. 
+* 
 ## 1. Add node label and taint
+
+As first step we will add node labels and taints
+
+* A node label of `nvidia.com/gpu=present` to more easily identify nodes with NVIDIA GPUs.
+* A node taint of `nvidia.com/gpu=present:NoSchedule` to prevent non-GPU pods from being deployed to GPU nodes.
 
 Run the following command to get nodes:
 
@@ -8,7 +15,7 @@ Run the following command to get nodes:
 kubectl get nodes
 ```
 
-You shoud output something similar to below:
+You should see output something similar to below:
 
 ```
 NAME                          STATUS   ROLES    AGE     VERSION
@@ -46,8 +53,7 @@ helm install -n kube-system node-feature-discovery kube-nfd/node-feature-discove
 
 ## 3. Install NVIDIA Device Plugin
 
-> [!Note]
-> We are using NVIDIA Device Plugin here because the default EKS optimzied AMI (Amazon Linux 2) already has NVIDIA drivers pre-installed. If you would like to use EKS Ubuntu AMI which does not have the drivers pre-installed, you need to install NVIDIA GPU Operator instead.
+> We are using NVIDIA Device Plugin here because the default EKS optimzied AMI (Amazon Linux 2) already has NVIDIA drivers pre-installed. If you would like to use EKS Ubuntu AMI which does not have the drivers pre-installed, you need to install [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/amazon-eks.html#nvidia-gpu-operator-with-amazon-eks) instead.
 
 ```
 kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
@@ -90,7 +96,7 @@ In you local browser, you should be able to see metrics in `localhost:8080`.
 
 ## 7. Install Prometheus Adapter
 
-This allows the metrics collected by Prometheus server to be available to Kuberntes' Horizontal Pod Autoscaler service.
+This allows the Triton metrics collected by Prometheus server to be available to Kuberntes' Horizontal Pod Autoscaler service.
 
 ```
 helm install -n monitoring prometheus-adapter prometheus-community/prometheus-adapter \
@@ -111,7 +117,7 @@ If the command fails, wait longer and retry. If the command fails for more than 
 
 ## 8. Install Prometheus rule for Triton metrics
 
-This generate custom metrics from a formula that uses the metrics collected by Prometheus. One of the custom metrics is used in Horizontal Pod Autoscaler (HPA). Users can modify this manifest to create their own custom metrics and set them in the HPA manifest.
+This generates custom metrics from a formula that uses the Triton metrics collected by Prometheus. One of the custom metrics is used in Horizontal Pod Autoscaler (HPA). Users can modify this manifest to create their own custom metrics and set them in the HPA manifest.
 
 ```
 kubectl apply -f ./triton-metrics_prometheus-rule.yaml
