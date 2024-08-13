@@ -29,19 +29,7 @@ cloudwatch:
 
 iam:
   withOIDC: true
-  serviceAccounts:
-    - metadata:
-        name: trtllm-service-account
-      attachPolicyARNs:
-        - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess"
 
-addons:
-  - name: vpc-cni
-    version: 1.18.1-eksbuild.1
-    configurationValues: '{"env":{"ENABLE_PREFIX_DELEGATION":"true", "ENABLE_POD_ENI":"true", "POD_SECURITY_GROUP_ENFORCING_MODE":"standard"},"enableNetworkPolicy": "true"}'
-    resolveConflicts: overwrite      
-  - name: amazon-cloudwatch-observability
-    version: v1.6.0-eksbuild.1
             
 managedNodeGroups:
   - name: cpu-node-group
@@ -59,18 +47,18 @@ managedNodeGroups:
         cloudWatch: true
         albIngress: true
   - name: gpu-compute-node-group
-    instanceType: $INSTANCE_TYPE
+    instanceType: p5.48xlarge
     instancePrefix: trtllm-compute-node 
     privateNetworking: true
     efaEnabled: true
     minSize: 0
     desiredCapacity: 0
-    maxSize: 4
+    maxSize: 2
     volumeSize: 500
-    # Uncomment capacityReservation if you need it
-    # capacityReservation:
-    #   capacityReservationTarget:
-    #     capacityReservationID: "cr-xxxxxxxxxxxxxx"
+    # comment out capacityReservation if you do not need ODCR
+    capacityReservation:
+      capacityReservationTarget:
+        capacityReservationID: "cr-xxxxxxxxxxxxxx"
     iam:
       withAddonPolicies:
         imageBuilder: true
