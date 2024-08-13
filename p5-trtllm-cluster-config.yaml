@@ -12,13 +12,10 @@ vpc:
     private:
       us-east-1a:
         id: $PLACEHOLDER_SUBNET_PRIVATE_1
-      us-east-1b:
-        id: $PLACEHOLDER_SUBNET_PRIVATE_2
     public:
       us-east-1a:
         id: $PLACEHOLDER_SUBNET_PUBLIC_1
-      us-east-1b:
-        id: $PLACEHOLDER_SUBNET_PUBLIC_2
+        
   clusterEndpoints:
     privateAccess: true
     publicAccess: true
