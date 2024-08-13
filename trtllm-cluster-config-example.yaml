@@ -44,7 +44,7 @@ addons:
     version: v1.6.0-eksbuild.1
             
 managedNodeGroups:
-  - name: sys-nodes-2
+  - name: cpu-node-group
     instanceType: c5.2xlarge
     minSize: 0
     desiredCapacity: 0
@@ -63,8 +63,8 @@ managedNodeGroups:
     instancePrefix: trtllm-compute-node 
     privateNetworking: true
     efaEnabled: true
-    minSize: 2
-    desiredCapacity: 2
+    minSize: 0
+    desiredCapacity: 0
     maxSize: 4
     volumeSize: 500
     # Uncomment capacityReservation if you need it
