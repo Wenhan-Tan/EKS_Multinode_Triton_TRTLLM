@@ -62,7 +62,7 @@ kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.
 ## 4. Install NVIDIA GPU Feature Discovery service
 
 ```
-kubectl apply -f ./nvidia_gpu-feature-discovery_daemonset.yaml
+kubectl apply -f multinode_helm_chart/nvidia_gpu-feature-discovery_daemonset.yaml
 ```
 
 ## 5. Install Prometheus Kubernetes Stack
@@ -120,7 +120,7 @@ If the command fails, wait longer and retry. If the command fails for more than 
 This generates custom metrics from a formula that uses the Triton metrics collected by Prometheus. One of the custom metrics is used in Horizontal Pod Autoscaler (HPA). Users can modify this manifest to create their own custom metrics and set them in the HPA manifest.
 
 ```
-kubectl apply -f ./triton-metrics_prometheus-rule.yaml
+kubectl apply -f multinode_helm_chart/triton-metrics_prometheus-rule.yaml
 ```
 
 At this point, all metrics components should have been installed. All metrics including Triton metrics, DCGM metrics, and custom metrics should be availble to Prometheus server now. You can verify by showing all metrics in Prometheus server:
