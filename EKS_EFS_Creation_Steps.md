@@ -62,15 +62,24 @@ metadata:
   version: "1.30"
   region: us-east-1
 
+availabilityZones:
+  - us-east-1a
+  - us-east-1b
+  - us-east-1c
+  - us-east-1d
+  - us-east-1e
+  - us-east-1f
+
 iam:
   withOIDC: true
 
 managedNodeGroups:
-  - name: sys-nodes
+  - name: sys-nodes-2
     instanceType: c5.2xlarge
     minSize: 0
     desiredCapacity: 0
     maxSize: 1
+    availabilityZones: ["us-east-1a"]
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -81,7 +90,7 @@ managedNodeGroups:
         cloudWatch: true
         albIngress: true
 
-  - name: efa-compute-nodes
+  - name: efa-compute-ng-2
     instanceType: g5.12xlarge
     minSize: 0
     desiredCapacity: 0
@@ -89,6 +98,7 @@ managedNodeGroups:
     volumeSize: 300
     efaEnabled: true
     privateNetworking: true
+    availabilityZones: ["us-east-1a"]
     iam:
       withAddonPolicies:
         imageBuilder: true

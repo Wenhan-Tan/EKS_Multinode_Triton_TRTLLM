@@ -6,6 +6,14 @@ metadata:
   version: "1.30"
   region: us-east-1
 
+availabilityZones:
+  - us-east-1a
+  - us-east-1b
+  - us-east-1c
+  - us-east-1d
+  - us-east-1e
+  - us-east-1f
+
 iam:
   withOIDC: true
 
@@ -15,6 +23,7 @@ managedNodeGroups:
     minSize: 0
     desiredCapacity: 0
     maxSize: 1
+    availabilityZones: ["us-east-1a"]
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -33,6 +42,7 @@ managedNodeGroups:
     volumeSize: 300
     efaEnabled: true
     privateNetworking: true
+    availabilityZones: ["us-east-1a"]
     iam:
       withAddonPolicies:
         imageBuilder: true
