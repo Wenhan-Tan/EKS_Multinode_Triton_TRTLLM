@@ -4,7 +4,7 @@
 
 We need to build a custom image on top of Triton TRT-LLM NGC container to include the kubessh file, server.py, and other EFA libraries stack.
 
-Run the following command to build the custom image:
+### a. Build the custom image:
 
 ```
 docker build \
@@ -14,7 +14,7 @@ docker build \
   .
 ```
 
-Push the image to a cluster visible repository:
+### b. Push the image to a cluster visible repository:
 
 ```
 docker push <custom_image_tag>
@@ -22,25 +22,38 @@ docker push <custom_image_tag>
 
 ## 2. Setup Triton model repository for LLM deployment:
 
-Clone the  Triton TRT-LLM backend repository:
+### a. Modify the `build_enignes.yaml` file
+
+Adjust the following values:
+
+- `image`: change image tag. Default is 24.07 which supports TRT-LLM v0.11.0
+- `nvidia.com/gpu`: set to the number of GPUs per node in your cluster, adjust in both the limits and requests section
+- `claimName`: set to your EFS pvc name
+
+### b. Build TRT-LLM engines
+
+Deploy a "sleep infinity" pod:
 
 ```
+cd multinode_helm_chart/
+kubectl apply -f build_engines.yaml
+kubectl exec -it build_engines -- bash
+```
+
+Clone the Triton TRT-LLM backend repository:
+
+```
+cd <EFS_mount_path>
 git clone https://github.com/triton-inference-server/tensorrtllm_backend.git -b v0.11.0
 cd tensorrtllm_backend
 git lfs install
 git submodule update --init --recursive
 ```
 
-Launch the Triton TRT-LLM container:
-
-```
-docker run --rm -it --net host --shm-size=2g --ulimit memlock=-1 --ulimit stack=67108864 --gpus all -v $(pwd):/workspace -w /workspace nvcr.io/nvidia/tritonserver:24.07-trtllm-python-py3 bash
-```
-
 Build a Llama3-8B engine with Tensor Parallelism=4, Pipeline Parallelism=2 to run on 2 nodes of g5.12xlarge (4 A10G GPUs each), so total of 8 GPUs across 2 nodes.
 
 ```
-cd tensorrt_llm/examples/llama
+cd tensorrtllm_backend/tensorrt_llm/examples/llama
 git clone https://huggingface.co/meta-llama/Meta-Llama-3-8B
 
 python convert_checkpoint.py --model_dir ./Meta-Llama-3-8B \
@@ -59,10 +72,10 @@ trtllm-build --checkpoint_dir ./converted_checkpoint \
              --use_paged_context_fmha enable
 ```
 
-Prepare the Triton model repository:
+### c. Prepare a Triton model repository
 
 ```
-cd /workspace
+cd <EFS_mount_path>/tensorrtllm_backend
 mkdir triton_model_repo
 
 cp -r all_models/inflight_batcher_llm/ensemble triton_model_repo/
@@ -71,13 +84,13 @@ cp -r all_models/inflight_batcher_llm/postprocessing triton_model_repo/
 cp -r all_models/inflight_batcher_llm/tensorrt_llm triton_model_repo/
 
 python3 tools/fill_template.py -i triton_model_repo/preprocessing/config.pbtxt tokenizer_dir:<path_to_tokenizer>,tokenizer_type:llama,triton_max_batch_size:4,preprocessing_instance_count:1
-python3 tools/fill_template.py -i triton_model_repo/tensorrt_llm/config.pbtxt triton_max_batch_size:4,decoupled_mode:False,max_beam_width:1,engine_dir:<path_to_engines>,max_tokens_in_paged_kv_cache:2560,max_attention_window_size:2560,kv_cache_free_gpu_mem_fraction:0.5,exclude_input_in_output:True,enable_kv_cache_reuse:False,batching_strategy:inflight_batching,max_queue_delay_microseconds:600
+python3 tools/fill_template.py -i triton_model_repo/tensorrt_llm/config.pbtxt triton_backend:tensorrtllm,triton_max_batch_size:4,decoupled_mode:False,max_beam_width:1,engine_dir:<path_to_engines>,max_tokens_in_paged_kv_cache:2560,max_attention_window_size:2560,kv_cache_free_gpu_mem_fraction:0.5,exclude_input_in_output:True,enable_kv_cache_reuse:False,batching_strategy:inflight_batching,max_queue_delay_microseconds:600
 python3 tools/fill_template.py -i triton_model_repo/postprocessing/config.pbtxt tokenizer_dir:<path_to_tokenizer>,tokenizer_type:llama,triton_max_batch_size:4,postprocessing_instance_count:1
 python3 tools/fill_template.py -i triton_model_repo/ensemble/config.pbtxt triton_max_batch_size:4
 ```
 
 > [!Note]
-> Be sure to substitute the correct values for `<path_to_tokenizer>` and `<path_to_engines>` in the example above. Keep in mind that we need to copy the tokenizer, the TRT-LLM engines, and the Triton model repository to a shared file storage between your nodes. They're required to launch your model in Triton. For example, if using AWS EFS, the values for `<path_to_tokenizer>` and `<path_to_engines>` should be respect to the actutal EFS mount path. This is determined by your persistent-volume claim and mount path in chart/templates/deployment.yaml. Make sure that your nodes are able to access these three items.
+> Be sure to substitute the correct values for `<path_to_tokenizer>` and `<path_to_engines>` in the example above. Keep in mind that the tokenizer, the TRT-LLM engines, and the Triton model repository shoudl be in a shared file storage between your nodes. They're required to launch your model in Triton. For example, if using AWS EFS, the values for `<path_to_tokenizer>` and `<path_to_engines>` should be respect to the actutal EFS mount path. This is determined by your persistent-volume claim and mount path in chart/templates/deployment.yaml. Make sure that your nodes are able to access these files.
 
 ## 3. Create a `<custom_values>.yaml` file
 
