@@ -121,7 +121,6 @@ If the command fails, wait longer and retry. If the command fails for more than 
 This generates custom metrics from a formula that uses the Triton metrics collected by Prometheus. One of the custom metrics is used in Horizontal Pod Autoscaler (HPA). Users can modify this manifest to create their own custom metrics and set them in the HPA manifest.
 
 ```
-cd multinode_helm_chart/
 kubectl apply -f triton-metrics_prometheus-rule.yaml
 ```
 
