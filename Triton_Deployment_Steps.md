@@ -37,7 +37,7 @@ Deploy a "sleep infinity" pod:
 ```
 cd multinode_helm_chart/
 kubectl apply -f build_engines.yaml
-kubectl exec -it build_engines -- bash
+kubectl exec -it build-engines -- bash
 ```
 
 Clone the Triton TRT-LLM backend repository:
