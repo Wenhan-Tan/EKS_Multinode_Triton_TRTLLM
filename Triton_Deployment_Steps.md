@@ -193,6 +193,9 @@ I0717 23:01:28.503047 300 http_server.cc:4692] "Started HTTPService at 0.0.0.0:8
 I0717 23:01:28.544321 300 http_server.cc:362] "Started Metrics Service at 0.0.0.0:8002"
 ```
 
+> [!Bug]
+> You may run into an error of `the GPU number is incompatible with 8 gpusPerNode when MPI size is 8`. The root cause is starting from v0.11.0, TRT-LLM backend checks the gpusPerNode parameter in the `config.json` file inside the output engines folder. This parameter is set during engine build time. If the value is the not the same as the number of GPUs in your node, this assertion error shows up. To resolve this, simply change the value in the file to match the number of GPUs in your node.
+
 ## 5. Send a Curl POST request for infernce
 
 Each cloud provider has their own LoadBalancer. In this AWS example, we can view the external IP address by running `kubectl get services`. Note that we use `wenhant-test` as helm chart installation name here. Your output should look something similar to below:
@@ -215,6 +218,9 @@ You should output similar to below:
 ```
 {"context_logits":0.0,"cum_log_probs":0.0,"generation_logits":0.0,"model_name":"ensemble","model_version":"1","output_log_probs":[0.0,0.0,0.0,0.0,0.0],"sequence_end":false,"sequence_id":0,"sequence_start":false,"text_output":" Machine learning is a branch of artificial intelligence that deals with the development of algorithms that allow computers to learn from data and make predictions or decisions without being explicitly programmed. Machine learning algorithms are used in a wide range of applications, including image recognition, natural language processing, and predictive analytics.\nWhat is the difference between machine learning and"}
 ```
+
+> [!Bug]
+> You may run into an error of `Multiple tagged security groups found for instance i-*************`. The root cause is both EKS cluster security group and EFA security group are using the same tag of `kubernetes.io/cluster/wenhant-eks-cluster : owned`. This tag should only be attached to 1 security group, usually your main security group. To resolve this, simply delete the tag from the EFA security group.
 
 ## 6. Test Horizontal Pod Autoscaler and Cluster Autoscaler
 
@@ -317,4 +323,103 @@ Note that the launcher pod will keep restarting until the connection is establis
 
 ```
 kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
+```
+
+You should output something similar to below (example of 2 x g5.12xlarge):
+
+```
+[1,0]<stdout>:#                                                              out-of-place                       in-place          
+[1,0]<stdout>:#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
+[1,0]<stdout>:#        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
+[1,0]<stdout>:           8             2     float     sum      -1[1,0]<stdout>:    99.10    0.00    0.00      0[1,0]<stdout>:    100.6    0.00    0.00      0
+[1,0]<stdout>:          16             4     float     sum      -1[1,0]<stdout>:    103.4    0.00    0.00      0[1,0]<stdout>:    102.5    0.00    0.00      0
+[1,0]<stdout>:          32             8     float     sum      -1[1,0]<stdout>:    103.5    0.00    0.00      0[1,0]<stdout>:    102.5    0.00    0.00      0
+[1,0]<stdout>:          64            16     float     sum      -1[1,0]<stdout>:    103.6    0.00    0.00      0[1,0]<stdout>:    102.3    0.00    0.00      0
+[1,0]<stdout>:         128            32     float     sum      -1[1,0]<stdout>:    103.8    0.00    0.00      0[1,0]<stdout>:    103.1    0.00    0.00      0
+[1,0]<stdout>:         256            64     float     sum      -1[1,0]<stdout>:    103.9    0.00    0.00      0[1,0]<stdout>:    103.3    0.00    0.00      0
+[1,0]<stdout>:         512           128     float     sum      -1[1,0]<stdout>:    104.3    0.00    0.01      0[1,0]<stdout>:    102.9    0.00    0.01      0
+[1,0]<stdout>:        1024           256     float     sum      -1[1,0]<stdout>:    105.8    0.01    0.02      0[1,0]<stdout>:    104.9    0.01    0.02      0
+[1,0]<stdout>:        2048           512     float     sum      -1[1,0]<stdout>:    116.4    0.02    0.03      0[1,0]<stdout>:    115.5    0.02    0.03      0
+[1,0]<stdout>:        4096          1024     float     sum      -1[1,0]<stdout>:    120.4    0.03    0.06      0[1,0]<stdout>:    119.0    0.03    0.06      0
+[1,0]<stdout>:        8192          2048     float     sum      -1[1,0]<stdout>:    134.2    0.06    0.11      0[1,0]<stdout>:    134.6    0.06    0.11      0
+[1,0]<stdout>:       16384          4096     float     sum      -1[1,0]<stdout>:    147.9    0.11    0.19      0[1,0]<stdout>:    147.3    0.11    0.19      0
+[1,0]<stdout>:       32768          8192     float     sum      -1[1,0]<stdout>:    182.3    0.18    0.31      0[1,0]<stdout>:    183.1    0.18    0.31      0
+[1,0]<stdout>:       65536         16384     float     sum      -1[1,0]<stdout>:    194.6    0.34    0.59      0[1,0]<stdout>:    193.5    0.34    0.59      0
+[1,0]<stdout>:      131072         32768     float     sum      -1[1,0]<stdout>:    267.5    0.49    0.86      0[1,0]<stdout>:    266.3    0.49    0.86      0
+[1,0]<stdout>:      262144         65536     float     sum      -1[1,0]<stdout>:    495.7    0.53    0.93      0[1,0]<stdout>:    496.6    0.53    0.92      0
+[1,0]<stdout>:      524288        131072     float     sum      -1[1,0]<stdout>:    746.2    0.70    1.23      0[1,0]<stdout>:    736.2    0.71    1.25      0
+[1,0]<stdout>:     1048576        262144     float     sum      -1[1,0]<stdout>:   1337.1    0.78    1.37      0[1,0]<stdout>:   1333.2    0.79    1.38      0
+[1,0]<stdout>:     2097152        524288     float     sum      -1[1,0]<stdout>:   2542.1    0.82    1.44      0[1,0]<stdout>:   2540.8    0.83    1.44      0
+[1,0]<stdout>:     4194304       1048576     float     sum      -1[1,0]<stdout>:   3377.7    1.24    2.17      0[1,0]<stdout>:   3381.8    1.24    2.17      0
+[1,0]<stdout>:     8388608       2097152     float     sum      -1[1,0]<stdout>:   5370.6    1.56    2.73      0[1,0]<stdout>:   5363.3    1.56    2.74      0
+[1,0]<stdout>:    16777216       4194304     float     sum      -1[1,0]<stdout>:   9547.6    1.76    3.08      0[1,0]<stdout>:   9578.5    1.75    3.07      0
+[1,0]<stdout>:    33554432       8388608     float     sum      -1[1,0]<stdout>:    17590    1.91    3.34      0[1,0]<stdout>:    17605    1.91    3.34      0
+[1,0]<stdout>:    67108864      16777216     float     sum      -1[1,0]<stdout>:    34096    1.97    3.44      0[1,0]<stdout>:    34121    1.97    3.44      0
+[1,0]<stdout>:   134217728      33554432     float     sum      -1[1,0]<stdout>:    67100    2.00    3.50      0[1,0]<stdout>:    67259    2.00    3.49      0
+[1,0]<stdout>:   268435456      67108864     float     sum      -1[1,0]<stdout>:   133445    2.01    3.52      0[1,0]<stdout>:   133455    2.01    3.52      0
+[1,0]<stdout>:   536870912     134217728     float     sum      -1[1,0]<stdout>:   266505    2.01    3.53      0[1,0]<stdout>:   266527    2.01    3.53      0
+[1,0]<stdout>:  1073741824     268435456     float     sum      -1[1,0]<stdout>:   536019    2.00    3.51      0[1,0]<stdout>:   535942    2.00    3.51      0
+[1,0]<stdout>:  2147483648     536870912     float     sum      -1[1,0]<stdout>:  1079960    1.99    3.48      0[1,0]<stdout>:  1079922    1.99    3.48      0
+[1,0]<stdout>:  4294967296    1073741824     float     sum      -1[1,0]<stdout>:  2271140    1.89    3.31      0[1,0]<stdout>:  2268693    1.89    3.31      0
+[1,0]<stdout>:# Out of bounds values : 0 OK
+[1,0]<stdout>:# Avg bus bandwidth    : 1.42557
+```
+
+## 9. (Optional) GenAI-Perf
+
+GenAI-Perf is a benchmarking tool for Triton server to measure latency and throughput of LLMs. We provide an example here.
+
+### a. Modify the `gen_ai_perf.yaml` file
+
+Adjust the following values:
+
+- `image`: change image tag. Default is 24.07 which supports TRT-LLM v0.11.0
+- `claimName`: set to your EFS pvc name
+
+### b. Run benchmark
+
+Run the below command to start a Triton server SDK container:
+
+```
+kubectl apply -f gen_ai_perf.yaml
+kubectl exec -it gen-ai-perf -- bash
+```
+
+Run the below command to start benchmarking:
+
+```
+genai-perf \
+  -m ensemble \
+  --service-kind triton \
+  --backend tensorrtllm \
+  --num-prompts 100 \
+  --random-seed 123 \
+  --synthetic-input-tokens-mean 1024 \
+  --synthetic-input-tokens-stddev 0 \
+  --streaming \ # Make sure the decoupled mode is enabled in the triton_model_repo/tensorrt_llm/config.pbtxt file
+  --output-tokens-mean 1024 \
+  --output-tokens-stddev 0 \
+  --output-tokens-mean-deterministic \
+  --tokenizer hf-internal-testing/llama-tokenizer \
+  --concurrency 1 \
+  --measurement-interval 10000 \
+  --url a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com:8001 \
+  -- --request-count=10
+```
+
+You should output something similar to below (example of Mixtral 8x7B on 2 x g5.12xlarge):
+
+```
+                                            LLM Metrics                                             
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃                Statistic ┃       avg ┃       min ┃       max ┃       p99 ┃       p90 ┃       p75 ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━┩
+│ Time to first token (ms) │    675.08 │    459.99 │  2,473.49 │  2,294.37 │    682.23 │    482.85 │
+│ Inter token latency (ms) │     22.86 │     19.98 │     24.37 │     24.32 │     23.79 │     23.41 │
+│     Request latency (ms) │ 29,906.05 │ 29,675.12 │ 31,814.10 │ 31,624.46 │ 29,917.75 │ 29,706.24 │
+│   Output sequence length │  1,282.70 │  1,200.00 │  1,463.00 │  1,448.24 │  1,315.40 │  1,291.75 │
+│    Input sequence length │  1,024.00 │  1,024.00 │  1,024.00 │  1,024.00 │  1,024.00 │  1,024.00 │
+└──────────────────────────┴───────────┴───────────┴───────────┴───────────┴───────────┴───────────┘
+Output token throughput (per sec): 42.89
+Request throughput (per sec): 0.03
 ```
