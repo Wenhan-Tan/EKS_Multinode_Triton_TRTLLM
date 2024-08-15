@@ -193,7 +193,7 @@ I0717 23:01:28.503047 300 http_server.cc:4692] "Started HTTPService at 0.0.0.0:8
 I0717 23:01:28.544321 300 http_server.cc:362] "Started Metrics Service at 0.0.0.0:8002"
 ```
 
-> [!Bug]
+> [!Note]
 > You may run into an error of `the GPU number is incompatible with 8 gpusPerNode when MPI size is 8`. The root cause is starting from v0.11.0, TRT-LLM backend checks the gpusPerNode parameter in the `config.json` file inside the output engines folder. This parameter is set during engine build time. If the value is the not the same as the number of GPUs in your node, this assertion error shows up. To resolve this, simply change the value in the file to match the number of GPUs in your node.
 
 ## 5. Send a Curl POST request for infernce
@@ -219,7 +219,7 @@ You should output similar to below:
 {"context_logits":0.0,"cum_log_probs":0.0,"generation_logits":0.0,"model_name":"ensemble","model_version":"1","output_log_probs":[0.0,0.0,0.0,0.0,0.0],"sequence_end":false,"sequence_id":0,"sequence_start":false,"text_output":" Machine learning is a branch of artificial intelligence that deals with the development of algorithms that allow computers to learn from data and make predictions or decisions without being explicitly programmed. Machine learning algorithms are used in a wide range of applications, including image recognition, natural language processing, and predictive analytics.\nWhat is the difference between machine learning and"}
 ```
 
-> [!Bug]
+> [!Note]
 > You may run into an error of `Multiple tagged security groups found for instance i-*************`. The root cause is both EKS cluster security group and EFA security group are using the same tag of `kubernetes.io/cluster/wenhant-eks-cluster : owned`. This tag should only be attached to 1 security group, usually your main security group. To resolve this, simply delete the tag from the EFA security group.
 
 ## 6. Test Horizontal Pod Autoscaler and Cluster Autoscaler
