@@ -1,28 +1,45 @@
 # Steps to deploy multi-node LLM using Triton + TRT-LLM on EKS cluster
 
-## 1. Build the custom container image
+## 1. Build the custom container image and push it to Amazon ECR
 
-We need to build a custom image on top of Triton TRT-LLM NGC container to include the kubessh file, server.py, and other EFA libraries stack.
-
-### a. Build the custom image:
+We need to build a custom image on top of Triton TRT-LLM NGC container to include the kubessh file, server.py, and other EFA libraries and will then push this image to Amazon ECR. You can take a look at the [Dockerfile here](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/multinode_helm_chart/containers/triton_trt-llm.containerfile).
 
 ```
+## AWS
+export AWS_REGION=us-east-1
+export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+
+## Docker Image
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+export IMAGE=triton_trtllm_multinode
+export TAG=":24.07"
+
 docker build \
   --file ./triton_trt-llm.containerfile \
   --rm \
-  --tag <custom_image_tag> \
+  --tag ${REGISTRY}${IMAGE}${TAG}
   .
-```
 
-### b. Push the image to a cluster visible repository:
+echo "Logging in to $REGISTRY ..."
+aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
 
-```
-docker push <custom_image_tag>
+# Create registry if it does not exist
+REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${IMAGE} | wc -l)
+if [ "$REGISTRY_COUNT" == "0" ]; then
+        echo ""
+        echo "Creating repository ${IMAGE} ..."
+        aws ecr create-repository --repository-name ${IMAGE}
+fi
+
+# Push image
+docker image push ${REGISTRY}${IMAGE}${TAG}
 ```
 
 ## 2. Setup Triton model repository for LLM deployment:
 
-### a. Modify the `build_enignes.yaml` file
+As first step here, we will build the TRT-LLM engines for our model.
+
+### a. Modify the `build_engines.yaml` file
 
 Adjust the following values:
 
@@ -65,17 +82,16 @@ python convert_checkpoint.py --model_dir ./Meta-Llama-3-8B \
 trtllm-build --checkpoint_dir ./converted_checkpoint \
              --output_dir ./output_engines \
              --gemm_plugin float16 \
-             --use_custom_all_reduce disable \ # only disable on non-NVLink machines
+             --use_custom_all_reduce disable \ # only disable on non-NVLink machines like g5.12xlarge
              --max_input_len 2048 \
              --max_output_len 2048 \
-             --max_batch_size 4 \
-             --use_paged_context_fmha enable
+             --max_batch_size 4 
 ```
 
-### c. Prepare a Triton model repository
+### c. Prepare the Triton model repository
 
 ```
-cd <EFS_mount_path>/tensorrtllm_backend
+cd <EFS_MOUNT_PATH>/tensorrtllm_backend
 mkdir triton_model_repo
 
 cp -r all_models/inflight_batcher_llm/ensemble triton_model_repo/
@@ -83,20 +99,20 @@ cp -r all_models/inflight_batcher_llm/preprocessing triton_model_repo/
 cp -r all_models/inflight_batcher_llm/postprocessing triton_model_repo/
 cp -r all_models/inflight_batcher_llm/tensorrt_llm triton_model_repo/
 
-python3 tools/fill_template.py -i triton_model_repo/preprocessing/config.pbtxt tokenizer_dir:<path_to_tokenizer>,tokenizer_type:llama,triton_max_batch_size:4,preprocessing_instance_count:1
-python3 tools/fill_template.py -i triton_model_repo/tensorrt_llm/config.pbtxt triton_backend:tensorrtllm,triton_max_batch_size:4,decoupled_mode:False,max_beam_width:1,engine_dir:<path_to_engines>,max_tokens_in_paged_kv_cache:2560,max_attention_window_size:2560,kv_cache_free_gpu_mem_fraction:0.5,exclude_input_in_output:True,enable_kv_cache_reuse:False,batching_strategy:inflight_batching,max_queue_delay_microseconds:600
-python3 tools/fill_template.py -i triton_model_repo/postprocessing/config.pbtxt tokenizer_dir:<path_to_tokenizer>,tokenizer_type:llama,triton_max_batch_size:4,postprocessing_instance_count:1
+python3 tools/fill_template.py -i triton_model_repo/preprocessing/config.pbtxt tokenizer_dir:<PATH_TO_TOKENIZER>,tokenizer_type:llama,triton_max_batch_size:4,preprocessing_instance_count:1
+python3 tools/fill_template.py -i triton_model_repo/tensorrt_llm/config.pbtxt triton_backend:tensorrtllm,triton_max_batch_size:4,decoupled_mode:True,max_beam_width:1,engine_dir:<PATH_TO_ENGINES>,,enable_kv_cache_reuse:False,batching_strategy:inflight_batching,max_queue_delay_microseconds:0
+python3 tools/fill_template.py -i triton_model_repo/postprocessing/config.pbtxt tokenizer_dir:<PATH_TO_TOKENIZER>,tokenizer_type:llama,triton_max_batch_size:4,postprocessing_instance_count:1
 python3 tools/fill_template.py -i triton_model_repo/ensemble/config.pbtxt triton_max_batch_size:4
 ```
 
 > [!Note]
-> Be sure to substitute the correct values for `<path_to_tokenizer>` and `<path_to_engines>` in the example above. Keep in mind that the tokenizer, the TRT-LLM engines, and the Triton model repository shoudl be in a shared file storage between your nodes. They're required to launch your model in Triton. For example, if using AWS EFS, the values for `<path_to_tokenizer>` and `<path_to_engines>` should be respect to the actutal EFS mount path. This is determined by your persistent-volume claim and mount path in chart/templates/deployment.yaml. Make sure that your nodes are able to access these files.
+> Be sure to substitute the correct values for `<PATH_TO_TOKENIZER>` and `<PATH_TO_ENGINES>` in the example above. Keep in mind that the tokenizer, the TRT-LLM engines, and the Triton model repository shoudl be in a shared file storage between your nodes. They're required to launch your model in Triton. For example, if using AWS EFS, the values for `<PATH_TO_TOKENIZER>` and `<PATH_TO_ENGINES>` should be respect to the actutal EFS mount path. This is determined by your persistent-volume claim and mount path in chart/templates/deployment.yaml. Make sure that your nodes are able to access these files.
 
-## 3. Create a `<custom_values>.yaml` file
+## 3. Create `example_values.yaml` file for deployment
 
 Make sure you go over the provided `values.yaml` first to understand what each value represents.
 
-Below is an example:
+Below is the `example_values.yaml` file we use:
 
 ```
 gpu: NVIDIA-A10G
@@ -111,6 +127,7 @@ tensorrtLLM:
 triton:
   image:
     name: wenhant16/triton_trtllm_multinode:24.07.10
+    # name: ${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/triton_trtllm_multinode:24.07
   resources:
     cpu: 4
     memory: 64Gi
@@ -135,9 +152,9 @@ autoscaling:
 ## 4. Install the Helm chart
 
 ```
-helm install <installation_name> \
+helm install multinode_deployment \
   --values ./chart/values.yaml \
-  --values ./chart/<custom_values>.yaml \
+  --values ./chart/example_values.yaml \
   ./chart/.
 ```
 
@@ -198,16 +215,16 @@ I0717 23:01:28.544321 300 http_server.cc:362] "Started Metrics Service at 0.0.0.
 
 ## 5. Send a Curl POST request for infernce
 
-Each cloud provider has their own LoadBalancer. In this AWS example, we can view the external IP address by running `kubectl get services`. Note that we use `wenhant-test` as helm chart installation name here. Your output should look something similar to below:
+In this AWS example, we can view the external IP address of Load Balancer by running `kubectl get services`. Note that we use `multinode_deployment` as helm chart installation name here. Your output should look something similar to below:
 
 ```
 NAME                     TYPE           CLUSTER-IP      EXTERNAL-IP                                                              PORT(S)                                        AGE
 kubernetes               ClusterIP      10.100.0.1      <none>                                                                   443/TCP                                        43d
 leaderworkerset-sample   ClusterIP      None            <none>                                                                   <none>                                         54m
-wenhant-test             LoadBalancer   10.100.44.170   a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com   8000:32120/TCP,8001:32263/TCP,8002:31957/TCP   54m
+multinode_deployment            LoadBalancer   10.100.44.170   a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com   8000:32120/TCP,8001:32263/TCP,8002:31957/TCP   54m
 ```
 
-You can send a CURL request to the `ensemble` TRT-LLM Llama-3 model with the following command:
+You can send a CURL request to the `ensemble` TRT-LLM Llama-3 model hosted in Triton Server with the following command:
 
 ```
 curl -X POST a69c447a535104f088d2e924f5523d41-634913838.us-east-1.elb.amazonaws.com:8000/v2/models/ensemble/generate -d '{"text_input": "What is machine learning?", "max_tokens": 64, "bad_words": "", "stop_words": "", "pad_id": 2, "end_id": 2}'
@@ -227,20 +244,20 @@ You should output similar to below:
 To check HPA status, run:
 
 ```
-kubectl get hpa wenhant-test
+kubectl get hpa multinode_deployment
 ```
 
 You should output something similar to below:
 
 ```
 NAME           REFERENCE                                TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
-wenhant-test   LeaderWorkerSet/leaderworkerset-sample   0/1       1         2         1          66m
+multinode_deployment   LeaderWorkerSet/leaderworkerset-sample   0/1       1         2         1          66m
 ```
 
 From the output above, the current metric value is 0 and the target value is 1. Note that in this example, our metric is a custom metric defined in Prometheus Rule. You can find more details in the [Install Prometheus rule for Triton metrics](Cluster_Setup_Steps.md#8-install-prometheus-rule-for-triton-metrics) step. When the current value exceed 1, the HPA will start to create a new replica. We can either increase traffic by sending a large amount of requests to the LoadBalancer or manually increase minimum number of replicas to let the HPA create the second replica. In this example, we are going to choose the latter and run the following command:
 
 ```
-kubectl patch hpa wenhant-test -p '{"spec":{"minReplicas": 2}}'
+kubectl patch hpa multinode_deployment -p '{"spec":{"minReplicas": 2}}'
 ```
 
 Your `kubectl get pods` command should output something similar to below:
@@ -284,7 +301,7 @@ leaderworkerset-sample-1-1   1/1     Running   0          38m
 You can run the following command to change minimum replica back to 1:
 
 ```
-kubectl patch hpa wenhant-test -p '{"spec":{"minReplicas": 1}}'
+kubectl patch hpa multinode_deployment -p '{"spec":{"minReplicas": 1}}'
 ```
 
 The HPA will delete the second replica if current metric does not exceed the target value. The Cluster Autoscaler will also remove the added 2 nodes when it detects them as "free".
