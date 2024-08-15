@@ -22,5 +22,5 @@ The files in this folder are intended to be used to create the custom container 
 Run the following command to create the container image.
 
 ```bash
-docker build --file ./triton_trt-llm.containerfile --tag <image_name_here> .
+docker build --file ./triton_trt_llm.containerfile --tag <image_name_here> .
 ```
