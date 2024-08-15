@@ -12,6 +12,6 @@ We have 1 pod per node, so the main challenge in deploying models that require m
 
 ## Setup and Installation
 
- 1. [Create EKS Cluster and EFS](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/EKS_EFS_Creation_Steps.md)
- 2. [Configure EKS Cluster and Install Dependencies](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/Cluster_Setup_Steps.md)
- 3. [Deploy Helm Chart and Install Triton Server](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/Triton_Deployment_Steps.md)
+ 1. [Create EKS Cluster](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/EKS_EFS_Creation_Steps.md)
+ 2. [Configure EKS Cluster](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/Cluster_Setup_Steps.md)
+ 3. [Deploy Triton](https://github.com/Wenhan-Tan/EKS_Multinode_Triton_TRTLLM/blob/main/Triton_Deployment_Steps.md)
