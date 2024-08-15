@@ -15,7 +15,7 @@ export IMAGE=triton_trtllm_multinode
 export TAG=":24.07"
 
 docker build \
-  --file ./triton_trt-llm.containerfile \
+  --file ./triton_trt_llm.containerfile \
   --rm \
   --tag ${REGISTRY}${IMAGE}${TAG}
   .
