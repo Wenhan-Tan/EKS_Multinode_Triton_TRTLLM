@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: build-engines
+  name: setup_ssh_efs
   labels:
-    app: build-engines
+    app: setup_ssh_efs
 spec:
   containers:
   - name: triton
