@@ -6,7 +6,7 @@ spec:
   runPolicy:
     cleanPodPolicy: Running
     backoffLimit: 20
-  slotsPerWorker: 4
+  slotsPerWorker: 8
   mpiReplicaSpecs:
     Launcher:
       replicas: 1
@@ -14,7 +14,7 @@ spec:
          spec:
           restartPolicy: OnFailure
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.10
+          - image: wenhant16/triton_trtllm_multinode:24.07.12
             name: test-nccl-launcher
             env:
              - name: LD_LIBRARY_PATH
@@ -26,9 +26,9 @@ spec:
             - --allow-run-as-root
             - --tag-output
             - -np
-            - "8"
+            - "16"
             - -N
-            - "4"
+            - "8"
             - --bind-to
             - none
             - -x
@@ -36,9 +36,17 @@ spec:
             - -x
             - LD_LIBRARY_PATH
             - -x
+            - FI_PROVIDER=efa
+            - -x
+            - FI_EFA_USE_DEVICE_RDMA=1
+            - -x
+            - FI_EFA_FORK_SAFE=1
+            - -x
             - NCCL_DEBUG=INFO
             - -x
             - NCCL_BUFFSIZE=8388608
+            - -x
+            - NCCL_P2P_NET_CHUNKSIZE=524288
             - --mca
             - pml
             - ^cm,ucx
@@ -66,23 +74,23 @@ spec:
       template:
         spec:
           nodeSelector:
-            node.kubernetes.io/instance-type: "g5.12xlarge"
+            node.kubernetes.io/instance-type: "p4d.24xlarge"
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.10
+          - image: wenhant16/triton_trtllm_multinode:24.07.12
             name: test-nccl-worker
             volumeMounts:
             - name: shmem
               mountPath: /dev/shm
             resources:
               limits:
-                nvidia.com/gpu: 4
+                nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
-                vpc.amazonaws.com/efa: 1
+                vpc.amazonaws.com/efa: 4
                 memory: 32000Mi
               requests:
-                nvidia.com/gpu: 4
+                nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
-                vpc.amazonaws.com/efa: 1
+                vpc.amazonaws.com/efa: 4
                 memory: 32000Mi
           volumes:
           - name: shmem

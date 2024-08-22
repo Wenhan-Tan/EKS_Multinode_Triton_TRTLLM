@@ -152,7 +152,7 @@ def do_leader(args):
     workers = wait_for_workers(world_size / args.gpu_per_node, args)
 
     if len(workers) != (world_size / args.gpu_per_node):
-        write_error(f"fatal: {len(workers)} found, expected {world_size}.")
+        write_error(f"fatal: {len(workers)} found, expected {world_size / args.gpu_per_node}.")
         die(ERROR_EXIT_DELAY)
     
     workers_with_mpi_slots = [worker + f":{args.gpu_per_node}" for worker in workers]
@@ -259,7 +259,7 @@ def main():
         raise Exception(f"--triton_model_repo_dir is required")
 
     if args.verbose:
-        write_output(f"Triton model repository is at:'{MODEL_DIRECTORY}'")
+        write_output(f"Triton model repository is at:'{args.triton_model_repo_dir}'")
 
     if args.mode == "leader":
         if args.gpu_per_node is None:

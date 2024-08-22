@@ -161,7 +161,7 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 32Gi
+            sizeLimit: 256Gi
     workerTemplate:
       metadata:
         labels:
@@ -246,4 +246,4 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 32Gi
+            sizeLimit: 256Gi
