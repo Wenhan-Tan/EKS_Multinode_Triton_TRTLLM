@@ -21,16 +21,16 @@ persistentVolumeClaim: efs-claim
 
 tensorrtLLM:
   parallelism:
-    tensor: 16
+    tensor: 8
     pipeline: 1
 
 triton:
   image:
-    name: wenhant16/triton_trtllm_multinode:24.07.12
-    # name: 354625738399.dkr.ecr.us-east-1.amazonaws.com/wenhant_triton_trtllm_multinode:24.07.2
+    name: wenhant16/triton_trtllm_multinode:24.07.10
+    # name: 354625738399.dkr.ecr.us-east-1.amazonaws.com/wenhant_triton_trtllm_multinode:24.07.3
   resources:
     cpu: 8
-    memory: 256Gi
+    memory: 160Gi
     efa: 1 # If you don't want to enable EFA, set this to 0.
   # triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
   # triton_model_repo_path: /var/run/models/llama3_8b_tp2_pp4/triton_model_repo
@@ -40,8 +40,8 @@ triton:
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_pp8_v11_a10g/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_tp8_v11_a10g/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_tp4_pp2_v11_a10g/triton_model_repo
-  # triton_model_repo_path: /var/run/models/triton_repo_llama3_70b_tp4_pp2_v11_a10g/triton_model_repo
-  triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x22b_tp16_v11_a100/triton_model_repo
+  triton_model_repo_path: /var/run/models/triton_repo_llama3_70b_tp4_pp2_v11_a10g/triton_model_repo
+  # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x22b_tp16_v11_a100/triton_model_repo
   enable_nsys: false # Note if you send lots of requests, nsys report can be very large.
 
 logging:

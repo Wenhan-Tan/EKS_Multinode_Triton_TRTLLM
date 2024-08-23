@@ -14,7 +14,7 @@ spec:
          spec:
           restartPolicy: OnFailure
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.12
+          - image: wenhant16/triton_trtllm_multinode:24.07.10
             name: test-nccl-launcher
             env:
              - name: LD_LIBRARY_PATH
@@ -76,7 +76,7 @@ spec:
           nodeSelector:
             node.kubernetes.io/instance-type: "p4d.24xlarge"
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.12
+          - image: wenhant16/triton_trtllm_multinode:24.07.10
             name: test-nccl-worker
             volumeMounts:
             - name: shmem
