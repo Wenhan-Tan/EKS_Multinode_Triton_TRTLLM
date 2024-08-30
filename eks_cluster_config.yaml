@@ -15,7 +15,7 @@ iam:
   withOIDC: true
 
 managedNodeGroups:
-  - name: sys-nodes2-east1
+  - name: sys-ng-east1
     instanceType: c5.2xlarge
     minSize: 1
     desiredCapacity: 1
@@ -32,7 +32,7 @@ managedNodeGroups:
         cloudWatch: true
         albIngress: true
 
-  - name: efa-compute-ng2-east1
+  - name: efa-compute-ng-east1
     instanceType: p5.48xlarge
     minSize: 1
     desiredCapacity: 1

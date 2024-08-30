@@ -28,9 +28,7 @@ tensorrtLLM:
 triton:
   image:
     # name: wenhant16/triton_trtllm_multinode:24.07.10
-    # name: 354625738399.dkr.ecr.us-east-1.amazonaws.com/wenhant_triton_trtllm_multinode:24.07.3 # new efa libraries
-    name: wenhant16/triton_trtllm_multinode:24.08.1 # original efa libraries
-    # name: wenhant16/triton_trtllm_multinode:24.08.2 # new efa libraries
+    name: wenhant16/triton_trtllm_multinode:24.08.1
   resources:
     cpu: 64
     memory: 512Gi
