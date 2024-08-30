@@ -22,8 +22,8 @@ persistentVolumeClaim: efs-claim
 
 tensorrtLLM:
   parallelism:
-    tensor: 16
-    pipeline: 1
+    tensor: 8
+    pipeline: 2
 
 triton:
   image:
