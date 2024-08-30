@@ -2,26 +2,25 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: wenhant-eks-cluster-east2
+  name: wenhant-eks-cluster-east1
   version: "1.30"
-  region: us-east-2
+  region: us-east-1
 
 availabilityZones:
-  - us-east-2a
-  - us-east-2b
-  - us-east-2c
+  - us-east-1a
+  - us-east-1f
 
 iam:
   withOIDC: true
 
 managedNodeGroups:
-  - name: sys-nodes
+  - name: sys-nodes2-east1
     instanceType: c5.2xlarge
     minSize: 1
     desiredCapacity: 1
     maxSize: 1
     volumeSize: 80
-    availabilityZones: ["us-east-2a"]
+    availabilityZones: ["us-east-1f"]
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -32,7 +31,7 @@ managedNodeGroups:
         cloudWatch: true
         albIngress: true
 
-  - name: efa-compute-ng
+  - name: efa-compute-ng2-east1
     instanceType: g5.12xlarge
     minSize: 1
     desiredCapacity: 1
@@ -40,7 +39,7 @@ managedNodeGroups:
     volumeSize: 300
     efaEnabled: true
     privateNetworking: true
-    availabilityZones: ["us-east-2a"]
+    availabilityZones: ["us-east-1f"]
     iam:
       withAddonPolicies:
         imageBuilder: true

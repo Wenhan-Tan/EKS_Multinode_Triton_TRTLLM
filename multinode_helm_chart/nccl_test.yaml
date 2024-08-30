@@ -14,7 +14,7 @@ spec:
          spec:
           restartPolicy: OnFailure
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.10
+          - image: wenhant16/triton_trtllm_multinode:24.08.1
             name: test-nccl-launcher
             env:
              - name: LD_LIBRARY_PATH
@@ -74,9 +74,9 @@ spec:
       template:
         spec:
           nodeSelector:
-            node.kubernetes.io/instance-type: "p4d.24xlarge"
+            node.kubernetes.io/instance-type: "p5.48xlarge"
           containers:
-          - image: wenhant16/triton_trtllm_multinode:24.07.10
+          - image: wenhant16/triton_trtllm_multinode:24.08.1
             name: test-nccl-worker
             volumeMounts:
             - name: shmem
@@ -85,12 +85,12 @@ spec:
               limits:
                 nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
-                vpc.amazonaws.com/efa: 4
+                vpc.amazonaws.com/efa: 32
                 memory: 32000Mi
               requests:
                 nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
-                vpc.amazonaws.com/efa: 4
+                vpc.amazonaws.com/efa: 32
                 memory: 32000Mi
           volumes:
           - name: shmem

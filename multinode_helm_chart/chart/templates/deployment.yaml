@@ -122,9 +122,9 @@ spec:
               nvidia.com/gpu: {{ $.Values.gpuPerNode }}
               vpc.amazonaws.com/efa: {{ $.Values.triton.resources.efa }}
           startupProbe:
-            failureThreshold: 60
+            failureThreshold: 240
             httpGet:
-              path: /v2/health/ready
+              path: /v2/health/live
               port: 8000
             initialDelaySeconds: 60
             periodSeconds: 15
@@ -132,7 +132,6 @@ spec:
           volumeMounts:
           - mountPath: /var/run/models
             name: model-repository
-            # readOnly: true
           - mountPath: /dev/shm
             name: dshm
   {{-     with $.Values }}
@@ -141,7 +140,7 @@ spec:
   {{          toYaml . | indent 6 }}
   {{-       end }}
   {{-     end }}
-        # restartPolicy: Always
+        restartPolicy: Always
         serviceAccountName: {{ $.Release.Name }}
         terminationGracePeriodSeconds: 30
         tolerations:
@@ -157,11 +156,10 @@ spec:
         - name: model-repository
           persistentVolumeClaim:
             claimName: {{ $.Values.persistentVolumeClaim }}
-            # readOnly: false
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 256Gi
+            sizeLimit: 512Gi
     workerTemplate:
       metadata:
         labels:
@@ -217,7 +215,6 @@ spec:
           volumeMounts:
           - mountPath: /var/run/models
             name: model-repository
-            # readOnly: true
           - mountPath: /dev/shm
             name: dshm
   {{-     with $.Values }}
@@ -242,8 +239,7 @@ spec:
         - name: model-repository
           persistentVolumeClaim:
             claimName: {{ $.Values.persistentVolumeClaim }}
-            # readOnly: true
         - name: dshm
           emptyDir:
             medium: Memory
-            sizeLimit: 256Gi
+            sizeLimit: 512Gi

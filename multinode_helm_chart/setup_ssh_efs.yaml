@@ -7,13 +7,13 @@ metadata:
 spec:
   containers:
   - name: triton
-    image: nvcr.io/nvidia/tritonserver:24.07-trtllm-python-py3
+    image: nvcr.io/nvidia/tritonserver:24.08-trtllm-python-py3
     command: ["sleep", "infinity"]
     resources:
       limits:
-        nvidia.com/gpu: 4
+        nvidia.com/gpu: 8
       requests:
-        nvidia.com/gpu: 4
+        nvidia.com/gpu: 8
     volumeMounts:
       - mountPath: /var/run/models
         name: model-repository
@@ -26,4 +26,4 @@ spec:
     - name: dshm
       emptyDir:
         medium: Memory
-        sizeLimit: 32Gi
+        sizeLimit: 512Gi

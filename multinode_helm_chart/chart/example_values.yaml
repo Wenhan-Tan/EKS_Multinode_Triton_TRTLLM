@@ -14,24 +14,27 @@
 
 # See values.yaml for reference values.
 
-gpu: NVIDIA-A10G
+# gpu: NVIDIA-A10G
 # gpu: NVIDIA-A100-SXM4-40GB
-gpuPerNode: 4
+gpu: NVIDIA-H100-80GB-HBM3
+gpuPerNode: 8
 persistentVolumeClaim: efs-claim
 
 tensorrtLLM:
   parallelism:
-    tensor: 8
+    tensor: 16
     pipeline: 1
 
 triton:
   image:
-    name: wenhant16/triton_trtllm_multinode:24.07.10
-    # name: 354625738399.dkr.ecr.us-east-1.amazonaws.com/wenhant_triton_trtllm_multinode:24.07.3
+    # name: wenhant16/triton_trtllm_multinode:24.07.10
+    # name: 354625738399.dkr.ecr.us-east-1.amazonaws.com/wenhant_triton_trtllm_multinode:24.07.3 # new efa libraries
+    name: wenhant16/triton_trtllm_multinode:24.08.1 # original efa libraries
+    # name: wenhant16/triton_trtllm_multinode:24.08.2 # new efa libraries
   resources:
-    cpu: 8
-    memory: 160Gi
-    efa: 1 # If you don't want to enable EFA, set this to 0.
+    cpu: 64
+    memory: 512Gi
+    efa: 32 # If you don't want to enable EFA, set this to 0.
   # triton_model_repo_path: /var/run/models/mixtral_8x7b_tp8_ep2_moetp4/triton_model_repo
   # triton_model_repo_path: /var/run/models/llama3_8b_tp2_pp4/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_tp4_moeep2_moetp2_pp2_v11_a10g/triton_model_repo
@@ -40,13 +43,14 @@ triton:
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_pp8_v11_a10g/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_tp8_v11_a10g/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x7b_tp4_pp2_v11_a10g/triton_model_repo
-  triton_model_repo_path: /var/run/models/triton_repo_llama3_70b_tp4_pp2_v11_a10g/triton_model_repo
+  # triton_model_repo_path: /var/run/models/triton_repo_llama3_70b_tp4_pp2_v11_a10g/triton_model_repo
   # triton_model_repo_path: /var/run/models/triton_repo_mixtral_8x22b_tp16_v11_a100/triton_model_repo
+  triton_model_repo_path: /var/run/models/triton_repo_llama3_1_405b_tp8_pp2_v12_h100/triton_model_repo
   enable_nsys: false # Note if you send lots of requests, nsys report can be very large.
 
 logging:
   tritonServer:
-    verbose: false
+    verbose: true
 
 autoscaling:
   enable: true
