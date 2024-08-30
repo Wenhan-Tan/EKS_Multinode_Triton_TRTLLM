@@ -159,7 +159,7 @@ def do_leader(args):
 
     if args.enable_nsys:
         cmd_args = [
-            "/var/run/models/nsight-systems-cli-DVS/bin/nsys",
+            "nsys",
             "profile",
             "--force-overwrite",
             "true",
