@@ -19,7 +19,7 @@ metadata:
 spec:
   replicas: 1
   leaderWorkerTemplate:
-    size: 2
+    size: {{ div (mul $.Values.tensorrtLLM.parallelism.tensor $.Values.tensorrtLLM.parallelism.pipeline) $.Values.gpuPerNode }}
     leaderTemplate:
       metadata:
         name: {{ $.Release.Name }}-leader
